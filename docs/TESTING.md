@@ -3,7 +3,8 @@
 Build first using [Building](BUILDING.md). Commands run from the repository
 root and use the MinGW output layout. No test-host SDK or device mapping is
 assumed. Prebuilt Windows packages are also available from the latest release.
-Radio CAT/PTT remains disabled.
+Audio-only bench tests use NullRig. Optional CAT tests use Dummy/loopback
+backends, not a physical transmitter. See [Radio control](RADIO_CONTROL.md).
 
 ## Tests without audio hardware
 

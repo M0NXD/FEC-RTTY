@@ -9,6 +9,7 @@ param(
     [ValidateRange(8,60)][int]$ReceiveTailSeconds = 20,
     [switch]$SplitOffsets,
     [switch]$RetuneRx,
+    [switch]$CatDummy,
     [string]$EvidenceDir
 )
 $ErrorActionPreference = 'Stop'
@@ -61,16 +62,18 @@ for ($direction = 0; $direction -lt $messages.Count; $direction++) {
         if ($RetuneRx) { $rxTuning += @('--retune-rx-hz', "$CenterHz", '--retune-after', '2') }
     }
     $rx = $null; $tx = $null
+    $catArguments = if ($CatDummy) { @('--rig-backend','hamlib','--rig-model','1','--cat-apply-hz','14080000','--cat-mode','USB','--cat-ptt') } else { @() }
     try {
         $rx = Start-GuiBench (@('--autostart', '--rx', "${Backend}:$InputDevice", '--tx', "${Backend}:$OutputDevice", '--run-seconds', "$seconds", '--report', $rxReport, '--snapshot', "$prefix-rx.png") + $common + $rxTuning)
         Start-Sleep -Milliseconds 1000
-        $tx = Start-GuiBench (@('--autostart', '--rx', 'none', '--tx', "${Backend}:$OutputDevice", '--send', $message, '--quit-after-send', '--run-seconds', "$seconds", '--report', $txReport) + $common + $txTuning)
+        $tx = Start-GuiBench (@('--autostart', '--rx', 'none', '--tx', "${Backend}:$OutputDevice", '--send', $message, '--quit-after-send', '--run-seconds', "$seconds", '--report', $txReport) + $common + $txTuning + $catArguments)
         Write-Output "Visible $Backend direction $direction GUI RX=$($rx.Id) TX=$($tx.Id) expected=$byteCount bytes"
         if (-not $tx.WaitForExit(($seconds + 5) * 1000)) { throw 'GUI TX did not finish' }
         if (-not $rx.WaitForExit(($seconds + 5) * 1000)) { throw 'GUI RX did not finish' }
         $received = Get-Content -Raw -LiteralPath $rxReport -Encoding UTF8 | ConvertFrom-Json
         $sent = Get-Content -Raw -LiteralPath $txReport -Encoding UTF8 | ConvertFrom-Json
         $exact = $received.received_text -ceq $message
+        if ($CatDummy -and (-not $sent.cat_armed -or $sent.cat_fault -or $sent.cat_ptt_owned -or $sent.cat_transmitting -or -not $sent.cat_connected)) { throw 'Hamlib Dummy CAT key/release assertion failed' }
         Write-Output "direction=$direction exact=$exact tx_exit=$($tx.ExitCode) rx_exit=$($rx.ExitCode) frames=$($received.frames_ok) crc=$($received.crc_failures) gaps=$($received.sequence_gaps) drops=$($received.dropped_samples) acquisitions=$($received.acquisitions) center=$($received.center_hz)"
         if ($tx.ExitCode -ne 0 -or $rx.ExitCode -ne 0 -or -not $sent.tx_success -or -not $exact -or
             $received.frames_ok -ne $frames -or $received.crc_failures -ne 0 -or $received.sequence_gaps -ne 0 -or $received.dropped_samples -ne 0 -or $received.capture_interruptions -ne 0) {

@@ -95,7 +95,7 @@ static bool rigctl_loopback_test(){
  return connected&&accepted.load()&&commands_sent&&
         commands.find("F 14070000\n")!=std::string::npos&&
         commands.find("M PKTUSB 0\n")!=std::string::npos&&
-        commands.find("T 1\n")!=std::string::npos&&
+        commands.find("T 3\n")!=std::string::npos&&
         commands.find("T 0\n")!=std::string::npos;
 }
 #endif

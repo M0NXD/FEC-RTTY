@@ -14,7 +14,7 @@ in the complete upstream sources; SDK SPDX metadata is included for reference.
 
 The unmodified, complete source archives are included inside every Windows
 package at `licenses/qt/source/` and are separately attached to the same
-[release page](https://github.com/M0NXD/FEC-RTTY/releases/tag/v0.45.1):
+[release page](https://github.com/M0NXD/FEC-RTTY/releases/tag/v0.46.0):
 
 | Archive | SHA256 |
 |---|---|
@@ -36,6 +36,19 @@ license claim for its own source.
 The optional Mesa software-OpenGL and Microsoft D3D compiler DLLs deployed by
 some SDKs are not distributed in these packages. This Widgets interface uses
 raster painting. SDK inventories can describe components not shipped at runtime.
+
+## Hamlib 4.7.2 and libusb 1.0.30
+
+The GUI dynamically links unmodified Hamlib (LGPL-2.1) and libusb
+(LGPL-2.1-or-later). Complete source archives, license/copyright notices and
+libusb MSYS2 build recipe accompany the packages. No Hamlib GPL helper EXEs
+are distributed. Modification/replacement/debugging rights are preserved;
+see [CAT library replacement](https://github.com/M0NXD/FEC-RTTY/blob/main/installer/resources/REPLACING_CAT.md).
+The offline copy is installed at `licenses/REPLACING_CAT.html`.
+
+[Hamlib upstream](https://github.com/Hamlib/Hamlib/releases/tag/4.7.2) ·
+[libusb upstream](https://github.com/libusb/libusb/releases/tag/v1.0.30).
+OmniRig is an optional separately installed COM server, not bundled.
 
 ## PortAudio
 

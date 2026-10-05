@@ -13,12 +13,12 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $project = Split-Path -Parent $PSScriptRoot
-if (-not $ReleaseDir) { $ReleaseDir = Join-Path $project 'releases/fectty-v0.45.1-noise-acquisition-20261004' }
-if (-not $AcceptedArchive) { $AcceptedArchive = Join-Path $project 'releases/fectty-v0.45.1-noise-acquisition-20261004.zip' }
+if (-not $ReleaseDir) { $ReleaseDir = Join-Path $project 'releases/fectty-v0.46.0-cat-20261005' }
+if (-not $AcceptedArchive) { $AcceptedArchive = Join-Path $project 'releases/fectty-v0.46.0-cat-20261005.zip' }
 if (-not $QtRoot) { $QtRoot = Join-Path $project 'third_party/qt/6.8.3/mingw_64' }
 if (-not $QtLicenseDir) { $QtLicenseDir = Join-Path $project 'third_party/installer-licenses' }
 if (-not $QtSourceDir) { $QtSourceDir = Join-Path $project 'third_party/public-qt-sources' }
-if (-not $OutputDir) { $OutputDir = Join-Path $project 'releases/latest' }
+if (-not $OutputDir) { $OutputDir = Join-Path $project 'releases/v0.46.0-public' }
 if (-not $IsccExe) {
     $candidates = @((Join-Path $project 'third_party/inno-setup-6.7.3/ISCC.exe'),
         'C:\Program Files (x86)\Inno Setup 6\ISCC.exe', 'C:\Program Files\Inno Setup 6\ISCC.exe')
@@ -32,12 +32,21 @@ $cmake = Get-Content (Join-Path $project 'source/CMakeLists.txt') -Raw
 $versionMatch = [regex]::Match($cmake, 'project\(fectty VERSION ([0-9]+\.[0-9]+\.[0-9]+)')
 if (-not $versionMatch.Success) { throw 'Application version is missing.' }
 $version = $versionMatch.Groups[1].Value
-if ($version -ne '0.45.1') { throw 'Update the pinned release/hash contract for a new application version before packaging.' }
+$contract = Get-Content (Join-Path $PSScriptRoot 'accepted-release.json') -Raw | ConvertFrom-Json
+if ($version -ne $contract.version) { throw 'Version differs from the recorded accepted runtime contract; rebuild and retest.' }
 $gui = Join-Path $ReleaseDir 'gui/fectty-gui.exe'
 $live = Join-Path $ReleaseDir 'bin/fectty-live.exe'
-if ((Get-FileHash $gui).Hash -ne 'D4B4C9AFE55F4C6A36B026C44A5BB6B6B990D33A5B26128D8D07EE88AE7061F6' -or
-    (Get-FileHash $live).Hash -ne '92AE05FF59F9A4BB09B886221D533D54A0C593ACAB59C5A5BC45CB8A2CFE8DFA') {
-    throw 'Runtime binaries do not match the accepted v0.45.1 release.'
+if ((Get-FileHash $gui).Hash -ne $contract.gui_sha256 -or (Get-FileHash $live).Hash -ne $contract.live_sha256) {
+    throw 'Runtime binaries differ from the accepted CAT release.'
+}
+$hamlibRoot = Join-Path $project 'third_party/hamlib-4.7.2'
+$libusbRoot = Join-Path $project 'third_party/libusb-1.0.30'
+$catSources = @(
+    @{ root=$hamlibRoot; name='hamlib-4.7.2.tar.gz'; hash='AE1FCF2DBC80EA0786EA8F047B09399C3F7737D1930442F61A031708ED33E88F'; folder='hamlib' },
+    @{ root=$libusbRoot; name='libusb-1.0.30.tar.bz2'; hash='FEA36F34F9156400209595E300840767AB1A385EDE1DC7EE893015AEA9C6DBAF'; folder='libusb' }
+)
+foreach ($input in $catSources) {
+    if ((Get-FileHash (Join-Path $input.root $input.name)).Hash -ne $input.hash) { throw "CAT source checksum mismatch: $($input.name)" }
 }
 $qtSources = @{
     'qtbase-everywhere-src-6.8.3.tar.xz' = '56001B905601BB9023D399F3BA780D7FA940F3E4861E496A7C490331F49E0B80'
@@ -49,10 +58,10 @@ foreach ($name in $qtSources.Keys) {
 
 # Verify every runtime/plugin, not just the two known executable hashes.
 $AcceptedArchive = (Resolve-Path -LiteralPath $AcceptedArchive).Path
-if ((Get-FileHash $AcceptedArchive).Hash -ne '2E32598DB037A3429B543AB70A6E105FF792A082A70820DE7727CA0A28F939F9') { throw 'Accepted release archive differs from its pinned checksum.' }
+if ((Get-FileHash $AcceptedArchive).Hash -ne $contract.archive_sha256) { throw 'Accepted release archive differs from its pinned checksum.' }
 $archive = [IO.Compression.ZipFile]::OpenRead($AcceptedArchive)
 try {
-    $prefix = 'fectty-v0.45.1-noise-acquisition-20261004/'
+    $prefix = $contract.archive_prefix
     $runtimeEntries = @($archive.Entries | Where-Object { $_.FullName -match ('^'+[regex]::Escape($prefix)+'(gui|bin)/') -and -not $_.FullName.EndsWith('/') })
     $runtimeFiles = @(Get-ChildItem (Join-Path $ReleaseDir 'gui'),(Join-Path $ReleaseDir 'bin') -File -Recurse)
     if ($runtimeEntries.Count -eq 0 -or $runtimeEntries.Count -ne $runtimeFiles.Count) { throw 'Runtime folder/archive file inventory mismatch.' }
@@ -109,6 +118,13 @@ foreach ($relative in @($tracked) + @($pending) | Sort-Object -Unique) {
 }
 foreach ($name in @('README.md','PROJECT_INDEX.md')) { Copy-PayloadFile (Join-Path $project $name) $name }
 foreach ($name in $qtSources.Keys) { Copy-PayloadFile (Join-Path $QtSourceDir $name) "licenses/qt/source/$name" }
+foreach ($input in $catSources) { Copy-PayloadFile (Join-Path $input.root $input.name) "licenses/$($input.folder)/source/$($input.name)" }
+foreach ($name in @('COPYING.LIB.txt','COPYING.txt','LICENSE.txt','AUTHORS.txt','README.w64-bin.txt')) {
+    Copy-PayloadFile (Join-Path $hamlibRoot "sdk/hamlib-w64-4.7.2/$name") "licenses/hamlib/$name"
+}
+Copy-PayloadFile (Join-Path $libusbRoot 'libusb-1.0.30/COPYING') 'licenses/libusb/COPYING'
+Copy-PayloadFile (Join-Path $libusbRoot 'PKGBUILD') 'licenses/libusb/PKGBUILD'
+Copy-PayloadFile (Join-Path $PSScriptRoot 'resources/REPLACING_CAT.md') 'licenses/REPLACING_CAT.md'
 Copy-PayloadFile (Join-Path $PSScriptRoot 'resources/REPLACING_QT.md') 'licenses/qt/REPLACING_QT.md'
 Copy-PayloadFile (Join-Path $PSScriptRoot 'resources/START_HERE.html') 'index.html'
 Copy-PayloadFile (Join-Path $PSScriptRoot 'THIRD_PARTY_NOTICES.md') 'licenses/THIRD_PARTY_NOTICES.md'
@@ -126,6 +142,16 @@ Copy-PayloadFile (Join-Path (Split-Path -Parent $IsccExe) 'License.txt') 'licens
 # with the GitHub-style anchors used by the canonical documents.
 $utf8 = [Text.UTF8Encoding]::new($false)
 $css = 'body{font:1rem/1.65 system-ui,Segoe UI,sans-serif;background:#111923;color:#e7edf5;max-width:72rem;margin:auto;padding:2rem}a{color:#79c8ff}h1,h2,h3{line-height:1.3;color:#7ed7c3}pre,code{background:#172331}pre{padding:1rem;overflow:auto}table{border-collapse:collapse;width:100%;display:block;overflow:auto}th,td{border:1px solid #40566d;padding:.6rem;text-align:left}img{max-width:100%;height:auto}code{overflow-wrap:anywhere}nav{margin-bottom:2rem}'
+function Convert-OfflineLinks([string]$Html) {
+    [regex]::Replace($Html, 'href="([^"?#]+)\.md(?=["?#])', [Text.RegularExpressions.MatchEvaluator]{ param($match)
+        # External Markdown pages remain external; only local pages are rendered.
+        if ($match.Groups[1].Value -match '^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|//)') { return $match.Value }
+        return 'href="'+$match.Groups[1].Value+'.html'
+    })
+}
+$linkProbe = '<a href="guide.md#section"></a><a href="https://example.org/guide.md"></a><a href="//example.org/guide.md"></a>'
+$linkExpected = '<a href="guide.html#section"></a><a href="https://example.org/guide.md"></a><a href="//example.org/guide.md"></a>'
+if ((Convert-OfflineLinks $linkProbe) -cne $linkExpected) { throw 'Offline/external link conversion regression.' }
 foreach ($markdown in Get-ChildItem $payload -Filter '*.md' -Recurse -File) {
     $rendered = (ConvertFrom-Markdown -LiteralPath $markdown.FullName).Html
     $anchorCounts = @{}
@@ -135,7 +161,7 @@ foreach ($markdown in Get-ChildItem $payload -Filter '*.md' -Recurse -File) {
         if ($anchorCounts.ContainsKey($slug)) { $anchorCounts[$slug]++; $slug += '-'+$anchorCounts[$slug] } else { $anchorCounts[$slug] = 0 }
         '<h'+$match.Groups[1].Value+' id="'+[Net.WebUtility]::HtmlEncode($slug)+'">'+$match.Groups[2].Value+'</h'+$match.Groups[1].Value+'>'
     })
-    $rendered = [regex]::Replace($rendered, '(href="[^"?#]*?)\.md(?=["?#])', '$1.html')
+    $rendered = Convert-OfflineLinks $rendered
     $relative = [IO.Path]::GetRelativePath($payload, $markdown.FullName)
     $prefix = '../' * (($relative -split '[\\/]').Count - 1)
     $title = [Net.WebUtility]::HtmlEncode($markdown.BaseName)
@@ -144,7 +170,8 @@ foreach ($markdown in Get-ChildItem $payload -Filter '*.md' -Recurse -File) {
 }
 # Validate primary offline navigation and GitHub-compatible section anchors.
 $offlineLinks = 0
-foreach ($relative in @('index.html','README.html','docs/PROJECT_GUIDE.html','docs/PROTOCOL.html','docs/GUI_PACKAGE.html','docs/INSTALLER.html','docs/DEVELOPMENT_PLAN.html','licenses/THIRD_PARTY_NOTICES.html')) {
+$primaryPages = @('index.html','README.html','docs/PROJECT_GUIDE.html','docs/PROTOCOL.html','docs/GUI_PACKAGE.html','docs/RADIO_CONTROL.html','docs/INSTALLER.html','docs/DEVELOPMENT_PLAN.html','licenses/THIRD_PARTY_NOTICES.html')
+foreach ($relative in $primaryPages) {
     $page = Join-Path $payload $relative
     $body = Get-Content $page -Raw -Encoding UTF8
     foreach ($match in [regex]::Matches($body,'(?:href|src)="([^"]+)"')) {
@@ -157,7 +184,7 @@ foreach ($relative in @('index.html','README.html','docs/PROJECT_GUIDE.html','do
         if ($parts.Count -eq 2 -and $parts[1] -and (Get-Content $target -Raw -Encoding UTF8) -notmatch ('id="'+[regex]::Escape($parts[1])+'"')) { throw "Offline section anchor missing: $relative -> $url" }
     }
 }
-Write-Output "Verified $offlineLinks local links/anchors across eight primary offline pages."
+Write-Output "Verified $offlineLinks local links/anchors across $($primaryPages.Count) primary offline pages."
 $files = @(Get-ChildItem $payload -File -Recurse | Sort-Object FullName | ForEach-Object {
     [pscustomobject][ordered]@{ path = [IO.Path]::GetRelativePath($payload,$_.FullName).Replace('\','/'); bytes = $_.Length; sha256 = (Get-FileHash $_.FullName).Hash }
 })
@@ -165,7 +192,7 @@ $commit = & git -C $project rev-parse HEAD
 $stagedTree = & git -C $project write-tree
 $sourceTree = & git -C $project rev-parse "${stagedTree}:source"
 $dirty = @(& git -C $project status --porcelain).Count -gt 0
-$manifest = [ordered]@{ app_id='FEC-RTTY-M0NXD'; app_version=$version; installer_revision=2; built_at=(Get-Date).ToString('o'); source_tree_sha1=$sourceTree; source_working_tree_dirty=$dirty; inno_version=(Get-Item $IsccExe).VersionInfo.FileVersion; driver_policy='No bundled driver; separate official vendor download only'; files=$files }
+$manifest = [ordered]@{ app_id='FEC-RTTY-M0NXD'; app_version=$version; installer_revision=1; built_at=(Get-Date).ToString('o'); source_tree_sha1=$sourceTree; source_working_tree_dirty=$dirty; inno_compiler_file_version=(Get-Item $IsccExe).VersionInfo.FileVersion; inno_compiler_sha256=(Get-FileHash $IsccExe).Hash; driver_policy='No bundled driver; separate official vendor download only'; files=$files }
 $manifestPath = Join-Path $payload 'installation-manifest.json'
 [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 6), $utf8)
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null

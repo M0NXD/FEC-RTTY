@@ -1,0 +1,65 @@
+[
+  {
+    "case": "normal",
+    "passed": true,
+    "exit": 0,
+    "ptt_on": 1,
+    "ptt_off": 1,
+    "generated_samples": 134400,
+    "radio_tx": 0
+  },
+  {
+    "case": "reject",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 1,
+    "ptt_off": 1,
+    "generated_samples": 0,
+    "radio_tx": 0
+  },
+  {
+    "case": "lost-reply",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 1,
+    "ptt_off": 1,
+    "generated_samples": 0,
+    "radio_tx": 0
+  },
+  {
+    "case": "external",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 0,
+    "ptt_off": 0,
+    "generated_samples": 0,
+    "radio_tx": 1
+  },
+  {
+    "case": "release-failure",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 1,
+    "ptt_off": 8,
+    "generated_samples": 134400,
+    "radio_tx": 1
+  },
+  {
+    "case": "cancel",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 1,
+    "ptt_off": 1,
+    "generated_samples": 63488,
+    "radio_tx": 0
+  },
+  {
+    "case": "overlong",
+    "passed": true,
+    "exit": 2,
+    "ptt_on": 0,
+    "ptt_off": 0,
+    "generated_samples": 0,
+    "radio_tx": 0
+  }
+]

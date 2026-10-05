@@ -10,7 +10,8 @@ portable use, standard Windows uninstall, rebuilding and acceptance limits.
 - `build-installer.ps1`: pinned runtime/source checks, notices, offline HTML,
   payload manifest, installer and portable ZIP.
 - `test-installer.ps1`: isolated install/repair/uninstall and optional audio tests.
-- `resources/`: introduction, getting-started page and Qt replacement information.
+- `resources/`: introduction, getting-started page and Qt/CAT library replacement information.
+- `accepted-release.json`: tested version and runtime/archive hash contract.
 - `THIRD_PARTY_NOTICES.md`: dependency notices/source and driver boundary.
 
 Builder inputs (accepted runtime archive, SDK/notices, Qt source archives and

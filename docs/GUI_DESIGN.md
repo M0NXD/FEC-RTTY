@@ -3,16 +3,16 @@
 ## Status and reading this document
 
 This file combines implemented UI direction with future product requirements.
-The [complete project guide](PROJECT_GUIDE.md) describes the current v0.45.1
+The [complete project guide](PROJECT_GUIDE.md) describes the current v0.46.0
 implementation. The project began as a 24-hour digital-mode experiment, not
 as a completed production radio application. Current operation is direct,
-linkless plaintext; CAT/PTT is disabled.
+linkless plaintext; CAT/PTT requires explicit arming.
 
 Implemented: layout-based Qt Widgets shell, dockable setup/diagnostics,
 Audio/Radio/Modem pages, real-audio text TX/RX, output volume, waterfall,
 precise linked/split audio tuning, settings, and bench reports. A full GUI
 logbook/macros/identity workflow, the named service-class split below, and
-live radio keying remain future work. The mode list has one fixed entry.
+physical-radio acceptance remain future work. CAT controls are implemented. The mode list has one fixed entry.
 
 ## Product goal
 
@@ -54,7 +54,7 @@ The three main regions should collapse gracefully. At narrower widths, the setup
 ## Design requirements (not all implemented)
 
 These are product requirements. Use [GUI operation](GUI_PACKAGE.md) for the
-controls that actually work in 0.45.1. RF tuning/PTT, a GUI logbook, selectable
+controls that actually work in 0.46.0. RF tuning/PTT are implemented; a GUI logbook, selectable
 sample rate and the full identity/export workflow are not current features.
 
 ### Radio control
@@ -62,8 +62,9 @@ sample rate and the full identity/export workflow are not current features.
 Provide a backend selector with explicit safe defaults:
 
 - NullRig / bench mode — default for development and virtual-cable tests.
-- Hamlib / `rigctld` — host, port, and connection test.
-- OmniRig — Windows installation/profile selection and connection test.
+- Hamlib direct — exact model, serial/USB port and baud.
+- Hamlib / `rigctld` — numeric host, port, and live readback.
+- OmniRig — external Windows COM server, Rig 1/2 selection and live readback.
 - Future CAT/PTT providers must register through the same interface.
 
 Show connection state, current frequency, mode, PTT state, and the reason when a backend is unavailable. Never silently transmit because a backend is misconfigured.

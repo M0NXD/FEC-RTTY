@@ -7,6 +7,7 @@ rem Usage: build.bat [clean]
 for %%I in ("%~dp0.") do set "ROOT=%%~fI"
 set "BUILD=%ROOT%\build"
 set "CONFIG=Release"
+if not defined FECTTY_BUILD_JOBS set "FECTTY_BUILD_JOBS=1"
 set "GENERATOR_ARGS="
 set "FECTTY_CXX_BIN="
 
@@ -27,7 +28,7 @@ if /I "%~1"=="clean" (
 )
 
 where cmake >nul 2>nul
-if errorlevel 1 (
+if not "%errorlevel%"=="0" (
     echo CMake was not found on PATH.
     exit /b 1
 )
@@ -36,14 +37,14 @@ echo Configuring FEC-RTTY in "%BUILD%"...
 rem An existing cache owns its generator; do not switch it just because PATH changed.
 if exist "%BUILD%\CMakeCache.txt" set "GENERATOR_ARGS="
 cmake %GENERATOR_ARGS% -S "%ROOT%" -B "%BUILD%" -DCMAKE_BUILD_TYPE=%CONFIG% -DFECTTY_WITH_PORTAUDIO=OFF -DFECTTY_WITH_HAMLIB=OFF -DFECTTY_WITH_QT=OFF
-if errorlevel 1 (
+if not "%errorlevel%"=="0" (
     echo CMake configuration failed.
     exit /b 1
 )
 
 echo Building %CONFIG%...
-cmake --build "%BUILD%" --config %CONFIG% --parallel
-if errorlevel 1 (
+cmake --build "%BUILD%" --config %CONFIG% --parallel %FECTTY_BUILD_JOBS%
+if not "%errorlevel%"=="0" (
     echo Build failed.
     exit /b 1
 )
@@ -61,7 +62,7 @@ if defined FECTTY_CXX_BIN for %%D in (libstdc++-6.dll libgcc_s_seh-1.dll libwinp
 
 echo Running regression tests...
 ctest --test-dir "%BUILD%" --build-config %CONFIG% --output-on-failure
-if errorlevel 1 (
+if not "%errorlevel%"=="0" (
     echo Tests failed.
     exit /b 1
 )

@@ -1,6 +1,6 @@
 # FEC-RTTY documentation and test-record index
 
-FEC-RTTY began as a 24-hour digital-mode experiment. Application **0.45.1**
+FEC-RTTY began as a 24-hour digital-mode experiment. Application **0.46.0**
 is the current baseline. [Latest Windows downloads](https://github.com/M0NXD/FEC-RTTY/releases/latest)
 are release attachments; this checkout contains the canonical source.
 
@@ -11,6 +11,7 @@ are release attachments; this checkout contains the canonical source.
 - [Building](docs/BUILDING.md): dependencies and source-to-executable steps.
 - [Testing](docs/TESTING.md): regressions and virtual-cable tests.
 - [GUI operation](docs/GUI_PACKAGE.md): devices, levels, waterfall and tuning.
+- [Radio control](docs/RADIO_CONTROL.md): Hamlib, rigctld, OmniRig and explicit PTT safety.
 - [Project guide](docs/PROJECT_GUIDE.md): architecture, source map and limitations.
 - [Protocol](docs/PROTOCOL.md): wire format and modem specification.
 
@@ -30,11 +31,14 @@ tree; only the latest canonical source is published.
 ## Recorded results
 
 These are dated observations, not guarantees for every computer or device.
-Tests used actual modem audio; radio CAT/PTT stayed disabled.
+Audio tests use actual modem samples. Historical records kept physical CAT/PTT
+disabled; v0.46.0 adds Dummy/loopback CAT tests without RF.
+
+- [v0.46.0 CAT/audio/installer acceptance](evidence/CAT_RELEASE_20261005.md).
 
 - [Documentation and fresh-source build review](evidence/DOCS_PUBLIC_AUDIT_20261005.md).
 - [Public Windows package acceptance](evidence/PUBLIC_RELEASE_20261005.md):
-  current hashes, install/repair/uninstall, exact audio and unresolved warnings.
+  v0.45.1 hashes, install/repair/uninstall, exact audio and unresolved warnings.
 - [v0.45.1 modem acceptance](evidence/BUG_FIXES_20261004_R11.md).
 - [Original installer acceptance](evidence/INSTALLER_20261005_R12.md):
   34 checks on the test host; the current public package is a later packaging revision.

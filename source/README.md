@@ -1,7 +1,7 @@
 # FEC-RTTY source
 
 This directory contains the C++20 modem, Windows audio adapters, Qt GUI and
-regression tests for application version 0.45.1. Start with the
+regression tests for application version 0.46.0. Start with the
 [project README](../README.md) and [build guide](../docs/BUILDING.md).
 The project began as a 24-hour digital-mode experiment; current limitations
 are documented in the [project guide](../docs/PROJECT_GUIDE.md).
@@ -23,7 +23,7 @@ SDK/toolchain as described in [Building](../docs/BUILDING.md), then run:
 .\source\build-gui\fectty-gui.exe
 ~~~
 
-The GUI helper deploys runtime DLLs/plugins beside its output and runs four
+The GUI helper deploys runtime DLLs/plugins beside its output and runs five
 CTest suites. Keep those files together. `build.bat clean` deletes the generated
 `source/build` directory before rebuilding; do not use it to preserve build outputs.
 
@@ -34,7 +34,7 @@ the same deployment or real-audio acceptance as the recorded Windows build.
 ## Code and tools
 
 - `include/fectty/` and `src/`: modem interfaces and implementations.
-- `src/gui_main.cpp`: desktop console; radio keying remains disabled.
+- `src/gui_main.cpp`: desktop console with explicit CAT/PTT arming; see [Radio control](../docs/RADIO_CONTROL.md).
 - `tests/`: deterministic regression tests and explicitly invoked audio diagnostics.
 - `CMakeLists.txt`: targets/version and optional Qt, PortAudio and Hamlib switches.
 - `build.bat`, `build-gui.bat`: Windows core and GUI build/deploy helpers.

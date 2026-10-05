@@ -3,7 +3,7 @@
 These instructions start from a fresh clone of
 [M0NXD/FEC-RTTY](https://github.com/M0NXD/FEC-RTTY), not a developer's existing
 SDK or runtime folders. Windows x64 is the recorded build/bench environment.
-The application version is 0.45.1.
+The application version is 0.46.0.
 
 ## What you need
 
@@ -15,7 +15,12 @@ The application version is 0.45.1.
 - For the GUI: a matching Qt 6 Widgets SDK and `windeployqt`; the tested SDK
   was Qt 6.8.3 for MinGW x64. See [Qt for Windows](https://doc.qt.io/qt-6.8/windows.html).
 - PortAudio development files/pkg-config are optional for the GUI. WinMM
-  does not need PortAudio. Hamlib is also optional and off in the helpers.
+  does not need PortAudio. Core builds keep Hamlib off; the release GUI helper
+  requires the Hamlib 4.7.2 x64 SDK plus a matching libusb 1.0.30 DLL. Obtain
+  [Hamlib](https://github.com/Hamlib/Hamlib/releases/tag/4.7.2) and
+  [libusb](https://github.com/libusb/libusb/releases/tag/v1.0.30) separately.
+  Set `HAMLIB_ROOT` to the SDK (include/lib/bin) and `LIBUSB_ROOT` to a matching
+  MSVCRT x64 directory containing bin/libusb-1.0.dll.
 
 The checkout includes no compiler, Qt SDK or runtime package. Build helpers
 do not install dependencies. A virtual cable is not needed to compile or run
@@ -68,6 +73,8 @@ with directories on your own computer before running:
 ~~~powershell
 $env:QT_ROOT = (Resolve-Path '<Qt SDK directory>').Path
 $env:TOOLCHAIN_ROOT = (Resolve-Path '<compatible MinGW directory>').Path
+$env:HAMLIB_ROOT = (Resolve-Path '<Hamlib x64 SDK directory>').Path
+$env:LIBUSB_ROOT = (Resolve-Path '<matching libusb directory with bin subfolder>').Path
 & .\source\build-gui.bat
 .\source\build-gui\fectty-gui.exe
 ~~~
@@ -80,11 +87,16 @@ install; neither directory is supplied by GitHub.
 
 The helper enables PortAudio if that toolchain contains its development
 pkg-config file, builds GUI/test tools, deploys Qt/compiler/optional PortAudio
-DLLs and runs four CTest suites. See
+DLLs and runs five CTest suites, including CAT regressions. See
 [Qt deployment](https://doc.qt.io/qt-6.8/windows-deployment.html) for the role
 of `windeployqt`. Keep the deployed `source/build-gui` directory's DLLs and
 plugin folders with the executable. A missing Vulkan-header notice does not
 by itself prove a build failed; check the actual build/test exit.
+
+The helpers default to one compile job to avoid memory exhaustion. Override
+`FECTTY_BUILD_JOBS` only when enough memory is available. Nonzero and crash
+exit codes are failures. The GUI SDK lookup uses `HAMLIB_ROOT`; CMake direct
+builds can use `-DFECTTY_WITH_HAMLIB=ON -DHAMLIB_ROOT=<SDK-root>`.
 
 ## Explicit CMake build
 
@@ -92,7 +104,7 @@ From the repository root, for a separate core build directory:
 
 ~~~powershell
 cmake -S source -B source/build-manual -DCMAKE_BUILD_TYPE=Release -DFECTTY_WITH_QT=OFF -DFECTTY_WITH_PORTAUDIO=OFF -DFECTTY_WITH_HAMLIB=OFF
-cmake --build source/build-manual --config Release --parallel
+cmake --build source/build-manual --config Release --parallel 1
 ctest --test-dir source/build-manual --build-config Release --output-on-failure
 ~~~
 

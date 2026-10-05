@@ -1,0 +1,191 @@
+{
+  "installer": "<project-root>\\releases\\v0.46.0-public\\FEC-RTTY-0.46.0-Setup-x64.exe",
+  "sha256": "5CB5C9DC01018FBD05AFC90041C836BA285537BD077990B8664BC38F0798224A",
+  "run_directory": "<project-root>\\installer\\build\\acceptance-20261005-223813-003",
+  "isolated_install": "<project-root>\\installer\\build\\acceptance-20261005-223813-003\\Installed FEC-RTTY é",
+  "tests": [
+    {
+      "check": "Unrelated nonempty installation folder rejected before copying",
+      "passed": true
+    },
+    {
+      "check": "Unrelated existing file preserved",
+      "passed": true
+    },
+    {
+      "check": "Offline install succeeds without elevation or reboot",
+      "passed": true
+    },
+    {
+      "check": "Settings/Control Panel uninstall entry has correct product/version",
+      "passed": true
+    },
+    {
+      "check": "InstallLocation, EstimatedSize and quiet-uninstall metadata exist",
+      "passed": true
+    },
+    {
+      "check": "Payload identity and all 558 installed file hashes",
+      "passed": true
+    },
+    {
+      "check": "Optional virtual-cable driver is not bundled",
+      "passed": true
+    },
+    {
+      "check": "Optional software-OpenGL/D3D runtime is not bundled",
+      "passed": true
+    },
+    {
+      "check": "Complete matching Qt source archives accompany installed libraries",
+      "passed": true
+    },
+    {
+      "check": "Complete matching Hamlib/libusb sources accompany installed CAT libraries",
+      "passed": true
+    },
+    {
+      "check": "Hamlib and updated libusb runtimes installed locally",
+      "passed": true
+    },
+    {
+      "check": "Offline CAT safety and library replacement guides installed",
+      "passed": true
+    },
+    {
+      "check": "Shortcut created: FEC-RTTY - M0NXD.lnk",
+      "passed": true
+    },
+    {
+      "check": "Shortcut points to installed GUI with correct runtime working directory",
+      "passed": true
+    },
+    {
+      "check": "Start-menu uninstall shortcut exists",
+      "passed": true
+    },
+    {
+      "check": "Installed gui/fectty-gui.exe starts with Windows-only PATH and no Qt environment overrides",
+      "passed": true
+    },
+    {
+      "check": "Installed bin/fectty-live.exe starts with Windows-only PATH and no Qt environment overrides",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-audit-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-cat-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-gui-text-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-waterfall-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Two simultaneous visible installed GUI windows are responding with correct title",
+      "passed": true
+    },
+    {
+      "check": "Simultaneous visible GUI closes cleanly",
+      "passed": true
+    },
+    {
+      "check": "Simultaneous visible GUI closes cleanly",
+      "passed": true
+    },
+    {
+      "check": "Current WinMM cable indices/names verified before transmission",
+      "passed": true
+    },
+    {
+      "check": "Current PortAudio MME cable indices/names verified before transmission",
+      "passed": true
+    },
+    {
+      "check": "Installed visible two-direction exact-text audio + Hamlib Dummy CAT test: winmm",
+      "passed": true
+    },
+    {
+      "check": "Installed visible two-direction exact-text audio + Hamlib Dummy CAT test: portaudio",
+      "passed": true
+    },
+    {
+      "check": "Rerun/repair succeeds with the same stable application identity",
+      "passed": true
+    },
+    {
+      "check": "Payload identity and all 558 installed file hashes",
+      "passed": true
+    },
+    {
+      "check": "Reinstall preserves user-created files",
+      "passed": true
+    },
+    {
+      "check": "Registered Windows uninstaller returns success",
+      "passed": true
+    },
+    {
+      "check": "Windows uninstall registration removed",
+      "passed": true
+    },
+    {
+      "check": "Owned application/runtime files removed",
+      "passed": true
+    },
+    {
+      "check": "Installed test shortcuts removed",
+      "passed": true
+    },
+    {
+      "check": "Pre-existing Start-menu/desktop shortcuts unchanged",
+      "passed": true
+    },
+    {
+      "check": "Uninstall preserves user-created files",
+      "passed": true
+    },
+    {
+      "check": "Existing operator settings unchanged through install/test/repair/uninstall",
+      "passed": true
+    },
+    {
+      "check": "Existing VB-Audio devices unchanged",
+      "passed": true
+    }
+  ],
+  "failure": null,
+  "audio_test": true,
+  "isolated_shortcuts": true,
+  "preserved_shortcuts": [
+    {
+      "path": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\FEC-RTTY - M0NXD\\FEC-RTTY - M0NXD.lnk",
+      "sha256": "AEFB17FFB6A796958AC64FEB51934DDAFC2B2E507665B1124DD01033E43E3AAA",
+      "backup": "<project-root>\\installer\\build\\acceptance-20261005-223813-003\\shortcut-backups\\0.lnk"
+    },
+    {
+      "path": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\FEC-RTTY - M0NXD\\Getting started and documentation.lnk",
+      "sha256": "12A78D5AA5C3B3812EDB5CCD1651388A21DC93188450E77C0602C30E71CD3AA6",
+      "backup": "<project-root>\\installer\\build\\acceptance-20261005-223813-003\\shortcut-backups\\1.lnk"
+    },
+    {
+      "path": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\FEC-RTTY - M0NXD\\Uninstall FEC-RTTY.lnk",
+      "sha256": "A6D607A5B6B8ECC585AFF362ECDD812EC9ACFD507D081D7A0FC59D0720D3F72B",
+      "backup": "<project-root>\\installer\\build\\acceptance-20261005-223813-003\\shortcut-backups\\2.lnk"
+    }
+  ],
+  "settings_before": "82FC0D67A7315FDEE7726850CC5E4338283BD47DD93093E4168FD48C18143264",
+  "registration_after": null,
+  "note": "Host acceptance, not a clean VM or driver installation test. Isolated-shortcut mode uses a separate Start-menu group and does not test desktop-shortcut creation. Synthetic user files/test artifacts retained."
+}

@@ -13,10 +13,10 @@ development or radio validation finished in that time.
 
 ## Download and run
 
-Current application: **0.45.1**, experimental Windows x64 bench build.
+Current application: **0.46.0**, experimental Windows x64 CAT/audio build.
 
-- [Windows installer](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.45.1/FEC-RTTY-0.45.1-Setup-x64.exe): installs application runtimes, documentation, Start-menu shortcuts and standard Windows uninstall.
-- [Portable Windows ZIP](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.45.1/FEC-RTTY-0.45.1-Windows-x64.zip): extract completely, then run `gui/fectty-gui.exe`.
+- [Windows installer](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.0/FEC-RTTY-0.46.0-Setup-x64.exe): installs application runtimes, documentation, Start-menu shortcuts and standard Windows uninstall.
+- [Portable Windows ZIP](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.0/FEC-RTTY-0.46.0-Windows-x64.zip): extract completely, then run `gui/fectty-gui.exe`.
 - [Latest release and checksums](https://github.com/M0NXD/FEC-RTTY/releases/latest): source download, SHA256 checksums and matching Qt library sources.
 
 Requires Windows 10 1809+ or Windows 11 x64 and a suitable 48 kHz audio device.
@@ -34,21 +34,24 @@ Older development packages are not published here.
 - Direct text transmission and decoding, without link negotiation or ACK waits.
 - A resizable Qt GUI, input/output device selection and output-volume control.
 - A real RX waterfall with linked or separate RX/TX audio-frequency offsets.
-- WinMM audio, optional PortAudio and a safe `NullRig / bench mode` default.
+- WinMM/PortAudio audio and a `NullRig / audio only` default.
+- Direct Hamlib, rigctld TCP and OmniRig with explicit PTT arming and RF tuning.
 
-![FEC-RTTY GUI showing decoded multiline text, live waterfall and split offsets](evidence/installer-20261005/audio-winmm/winmm-20261005-085656-direction-0-rx.png)
+![FEC-RTTY GUI showing decoded multiline text, live waterfall and split offsets](evidence/cat-20261005/audio-winmm/winmm-20261005-223916-direction-0-rx.png)
 
-Recorded v0.45.1 cable test after playback. Device names and offsets are examples.
+Recorded v0.46.0 cable receiver after playback; the sender used Hamlib Dummy
+PTT, not a physical radio. Device names and offsets are examples.
 
 This is **not conventional two-tone Baudot RTTY**; a compatible FEC-RTTY
-decoder is required. CAT/PTT radio control is disabled in the current modem
-session. `TX complete` means playback finished, not guaranteed reception.
+decoder is required. Optional CAT supports direct Hamlib, rigctld TCP and
+OmniRig. Arming is off on every launch; see [Radio control](docs/RADIO_CONTROL.md).
+`TX complete` means playback (and armed PTT release) finished, not guaranteed reception.
 
 ## Test with two windows
 
 Launch `gui/fectty-gui.exe` twice. For a virtual-cable test, install
 [VB-CABLE separately](https://vb-audio.com/Cable/), then select `CABLE Output`
-for RX and `CABLE Input` for TX in both windows. Keep `NullRig / bench mode`,
+for RX and `CABLE Input` for TX in both windows. Keep `NullRig / audio only`,
 use matching 1500 Hz offsets and start both sessions. Send A to B, wait for
 playback to finish, then test B to A. A shared cable carries both instances'
 audio, including their own transmissions; simultaneous sends can collide.
@@ -77,7 +80,7 @@ This builds/tests the core, **not the GUI**. Follow
 - [Project guide](docs/PROJECT_GUIDE.md): operation, architecture and limitations.
 - [Build instructions](docs/BUILDING.md) and [test instructions](docs/TESTING.md).
 - [Protocol specification](docs/PROTOCOL.md): waveform, framing, FEC and decoding.
-- [GUI operation](docs/GUI_PACKAGE.md) and [design requirements](docs/GUI_DESIGN.md).
+- [GUI operation](docs/GUI_PACKAGE.md), [radio/CAT operation](docs/RADIO_CONTROL.md) and [design requirements](docs/GUI_DESIGN.md).
 - [Development roadmap](docs/DEVELOPMENT_PLAN.md).
 - [Documentation and test-record index](PROJECT_INDEX.md).
 

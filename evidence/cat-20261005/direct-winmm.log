@@ -1,0 +1,4 @@
+Visible winmm direction 0 GUI RX=18964 TX=20676 expected=18 bytes
+direction=0 exact=True tx_exit=0 rx_exit=0 frames=3 crc=0 gaps=0 drops=0 acquisitions=1 center=1500
+Visible winmm direction 1 GUI RX=13648 TX=21912 expected=11 bytes
+direction=1 exact=True tx_exit=0 rx_exit=0 frames=2 crc=0 gaps=0 drops=0 acquisitions=1 center=1500

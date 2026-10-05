@@ -10,7 +10,8 @@ are retained privately, not published as additional versions.
 
 The current installer/portable ZIP share one verified payload with matching
 runtime DLLs, source, offline documentation, notices and complete Qt Base/SVG
-6.8.3 source archives. The Qt archives are also available from the same release
+6.8.3, Hamlib 4.7.2 and libusb 1.0.30 source archives, license notices and
+library replacement/build instructions. The Qt archives are also available from the same release
 page for recipients who only need the library sources. Include checksums and
 test scope; do not describe bench acceptance as RF or clean-machine acceptance.
 

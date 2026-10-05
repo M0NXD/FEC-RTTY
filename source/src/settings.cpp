@@ -34,6 +34,12 @@ bool save_settings(const AppSettings& s, const std::string& path) {
          << "\nrig_backend=" << escape(s.rig_backend)
          << "\nrig_host=" << escape(s.rig_host)
          << "\nrig_port=" << s.rig_port
+         << "\nhamlib_model=" << s.hamlib_model
+         << "\nhamlib_device=" << escape(s.hamlib_device)
+         << "\nhamlib_baud=" << s.hamlib_baud
+         << "\nomnirig_number=" << s.omnirig_number
+         << "\ntx_limit_seconds=" << s.tx_limit_seconds
+         << "\nptt_source=" << escape(s.ptt_source)
          << "\naudio_input=" << escape(s.audio_input)
          << "\naudio_output=" << escape(s.audio_output)
          << "\naudio_input_name=" << escape(s.audio_input_name)
@@ -86,6 +92,12 @@ bool load_settings(AppSettings& settings, const std::string& path) {
         else if (key == "rig_backend") candidate.rig_backend = value;
         else if (key == "rig_host") candidate.rig_host = value;
         else if (key == "rig_port") valid = bounded(value, candidate.rig_port, uint16_t{1}, uint16_t{65535});
+        else if (key == "hamlib_model") valid = bounded(value, candidate.hamlib_model, 0, 999999);
+        else if (key == "hamlib_device") candidate.hamlib_device = value;
+        else if (key == "hamlib_baud") valid = bounded(value, candidate.hamlib_baud, 300, 115200);
+        else if (key == "omnirig_number") valid = bounded(value, candidate.omnirig_number, 1, 2);
+        else if (key == "tx_limit_seconds") valid = bounded(value, candidate.tx_limit_seconds, 1, 600);
+        else if (key == "ptt_source") { valid=value=="on"||value=="mic"||value=="data"; if(valid)candidate.ptt_source=value; }
         else if (key == "audio_input") candidate.audio_input = value;
         else if (key == "audio_output") candidate.audio_output = value;
         else if (key == "audio_input_name") candidate.audio_input_name = value;

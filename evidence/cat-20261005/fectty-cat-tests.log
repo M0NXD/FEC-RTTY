@@ -1,0 +1,5 @@
+Controller and settings tests
+rigctld TCP tests
+OmniRig dispatch tests
+Hamlib Dummy tests
+CAT regression checks passed: 149 (no physical radio or RF)

@@ -1,6 +1,6 @@
 # FEC-RTTY - M0NXD: complete project guide
 
-Documentation baseline: application v0.45.1,
+Documentation baseline: application v0.46.0,
 4 October 2026, with public-reader instructions updated 5 October 2026.
 Get the current Windows installer/portable ZIP from the
 [latest release](https://github.com/M0NXD/FEC-RTTY/releases/latest).
@@ -59,8 +59,9 @@ newlines are preserved; binary/control frames are not rendered as chat text.
 `TX complete` means local audio playback completed, not that another station
 received every byte. There is no automatic identity/callsign exchange.
 
-CAT/PTT is disabled in the GUI modem session and CLI live bench. The Radio
-page can test backend connections, but choosing one does not enable keying.
+The GUI supports direct Hamlib, rigctld TCP and OmniRig Rig 1/2 with explicit
+PTT arming and dial/mode apply. Arming is off on every launch. See
+[Radio control](RADIO_CONTROL.md). The CLI live tool remains audio-only.
 Historical addressed ARQ and weak-signal helpers are not current GUI features
 or alternate selectable modes. Macro/logging APIs are not a full GUI logbook.
 
@@ -99,7 +100,7 @@ then launch `source/build-gui/fectty-gui.exe`. Alternatively, download the
 installer or portable ZIP from the official
 [release page](https://github.com/M0NXD/FEC-RTTY/releases/latest).
 
-Run `FEC-RTTY-0.45.1-Setup-x64.exe`, which bundles runtime prerequisites
+Run `FEC-RTTY-0.46.0-Setup-x64.exe`, which bundles runtime prerequisites
 and registers normal Windows uninstall. See [INSTALLER.md](INSTALLER.md).
 No modem behavior or radio-keying scope is changed by installer packaging.
 
@@ -164,9 +165,9 @@ certification for every monitor or accessibility setting.
   Both affect new queued blocks during a send; volume is saved but current
   modem gain is not. Volume 0 sends silence. The slider does not measure
   radio ALC/drive or establish safe RF output.
-- **Radio:** NullRig is local/safe. rigctld tests TCP availability and OmniRig
-  tests COM availability; these actions do not tune/key a radio. PTT lead/
-  tail fields are disabled, not functional transmit timing in this build.
+- **Radio:** NullRig is audio-only. Direct Hamlib, rigctld and OmniRig offer
+  live status, explicit dial/mode apply and armed PTT. Lead/tail timing is
+  functional only when armed. See [Radio control](RADIO_CONTROL.md).
 - **Mode:** one fixed `FEC-RTTY 4-FSK / FEC` entry, not a weak-signal selector.
 
 ### Waterfall and precise offsets
@@ -324,8 +325,8 @@ The GUI helper defaults to `third_party/qt/6.8.3/mingw_64`, prefers the
 conventional MSYS2 `mingw64` installation, and honors `QT_ROOT`/`TOOLCHAIN_ROOT`
 overrides. It builds
 GUI/tests/noise emitter, deploys Qt using `windeployqt`, copies matching
-compiler/PortAudio DLLs, and runs four CTests. PortAudio auto-enables when its
-pkg-config file is in that toolchain; Hamlib stays off. CMake options are
+compiler/PortAudio/Hamlib/libusb DLLs, and runs five CTests. PortAudio auto-enables
+when its pkg-config file is in that toolchain; the GUI helper requires Hamlib. CMake options are
 `FECTTY_WITH_QT`, `FECTTY_WITH_PORTAUDIO`, `FECTTY_WITH_HAMLIB`; each optional
 feature needs its development dependencies, not just DLLs. Runtime packages
 do not include the SDK/compiler. See [GUI_PACKAGE.md](GUI_PACKAGE.md).
@@ -518,7 +519,7 @@ acquisition tests; they are not calibrated RF sensitivity/fading/SNR claims.
 | Timed send unfinished | Allow byte-count duration plus startup overhead; unfinished automatic sends fail and cancelled drafts remain. |
 | Zero drops, captured/processed differ | Inspect shutdown/backlog, not just overflow; allowing processing time is a workaround, not a verified drain fix. |
 | Device number changed | Re-enumerate by endpoint name/API; WinMM/PortAudio indices differ and are ephemeral. |
-| Radio not keying/dial not moving | Expected: audio tuning and backend connection checks do not enable CAT/PTT or RF commands in the bench GUI. |
+| Radio not keying/dial not moving | Verify exact model/port, live readback, explicit Apply and PTT arming; inspect faults. Waterfall controls change audio offsets only. See [Radio control](RADIO_CONTROL.md). |
 
 ## 12. History and remaining work
 
@@ -547,14 +548,14 @@ There is a working bench release, but not zero remaining limitations:
    bidirectional acceptance. No active scheduler, delivery ACK, or retry.
 5. **Product/UI:** exhaustive monitor/accessibility validation, GUI logbook/
    macros/identity, and independent preference profiles remain incomplete.
-6. **Distribution:** clean-machine deployment, optional Hamlib acceptance,
+6. **Distribution:** clean-machine deployment, physical-radio/OmniRig acceptance,
    explicit project source licensing and code signing remain incomplete.
    Public Windows packages include dependency notices and Qt source/replacement
    instructions; this does not select a general application source license.
 
 Use [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) for the maintained route.
-Future work must preserve the intended single mode, plaintext, and disabled-
-radio bench scope unless explicitly changed. Waveform changes need an updated
+Future work must preserve the intended single mode, plaintext, and unarmed-
+by-default radio behavior unless explicitly changed. Waveform changes need an updated
 specification and interoperability vectors, not just a local successful send.
 
 ## 13. Maintenance, packaging, and Git

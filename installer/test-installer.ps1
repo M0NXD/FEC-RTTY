@@ -1,11 +1,11 @@
 #requires -Version 7.0
 [CmdletBinding()]
-param([string]$SetupExe, [switch]$TestAudio)
+param([string]$SetupExe, [switch]$TestAudio, [switch]$IsolatedShortcuts)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $project = Split-Path -Parent $PSScriptRoot
 . (Join-Path $project 'tools/public-paths.ps1')
-if (-not $SetupExe) { $SetupExe = Join-Path $project 'releases/latest/FEC-RTTY-0.45.1-Setup-x64.exe' }
+if (-not $SetupExe) { $SetupExe = Join-Path $project 'releases/v0.46.0-public/FEC-RTTY-0.46.0-Setup-x64.exe' }
 $SetupExe = (Resolve-Path $SetupExe).Path
 $registryPath = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\FEC-RTTY-M0NXD_is1'
 function Read-Installation {
@@ -20,11 +20,28 @@ function Read-Installation {
 if (Read-Installation) { throw 'An installed FEC-RTTY already exists. Refusing to replace/uninstall it for acceptance testing.' }
 $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'FEC-RTTY - M0NXD'
 $desktopShortcut = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'FEC-RTTY - M0NXD.lnk'
-if ((Test-Path $startMenu) -or (Test-Path $desktopShortcut)) { throw 'Pre-existing FEC-RTTY shortcuts found; refusing to overwrite them.' }
+if (-not $IsolatedShortcuts -and ((Test-Path $startMenu) -or (Test-Path $desktopShortcut))) { throw 'Pre-existing FEC-RTTY shortcuts found; use -IsolatedShortcuts to test without replacing them.' }
+$preservedShortcuts = @()
+if ($IsolatedShortcuts) {
+    foreach ($file in @((Get-ChildItem -LiteralPath $startMenu -File -Recurse -ErrorAction SilentlyContinue)) + @((Get-Item -LiteralPath $desktopShortcut -ErrorAction SilentlyContinue))) {
+        $preservedShortcuts += [ordered]@{ path=$file.FullName; sha256=(Get-FileHash -LiteralPath $file.FullName).Hash }
+    }
+}
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+if ($IsolatedShortcuts) { $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) "FEC-RTTY Acceptance-$stamp" }
 $run = Join-Path $PSScriptRoot "build/acceptance-$stamp"
 $installDir = Join-Path $run 'Installed FEC-RTTY é'
 New-Item -ItemType Directory -Path $run -Force | Out-Null
+$shortcutBackupDir = Join-Path $run 'shortcut-backups'
+if ($preservedShortcuts.Count) {
+    New-Item -ItemType Directory -Path $shortcutBackupDir | Out-Null
+    for ($i=0; $i -lt $preservedShortcuts.Count; $i++) {
+        $file = $preservedShortcuts[$i]
+        $file.backup = Join-Path $shortcutBackupDir "$i.lnk"
+        Copy-Item -LiteralPath $file.path -Destination $file.backup
+        if ((Get-FileHash -LiteralPath $file.backup).Hash -ne $file.sha256) { throw 'Shortcut backup mismatch; refusing installation.' }
+    }
+}
 $settings = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'FEC-RTTY/FEC-RTTY/fectty.ini'
 $settingsBefore = if (Test-Path $settings) { (Get-FileHash $settings).Hash } else { $null }
 $driversBefore = @(Get-CimInstance Win32_PnPEntity | Where-Object Name -match 'VB-Audio|VB-CABLE|VBCABLE' | ForEach-Object { $_.DeviceID+'|'+$_.Status } | Sort-Object)
@@ -89,11 +106,12 @@ try {
     Check ($refused.exit -ne 0 -and -not (Read-Installation) -and -not (Test-Path (Join-Path $occupied 'gui'))) 'Unrelated nonempty installation folder rejected before copying'
     Check ((Get-Content (Join-Path $occupied 'keep.txt') -Raw) -eq 'Do not overwrite this unrelated folder.') 'Unrelated existing file preserved'
 
-    $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/TASKS=desktopicon',"/DIR=$installDir", "/LOG=$(Join-Path $run 'install-inno.log')")
+    $shortcutArgs = if ($IsolatedShortcuts) { @('/TASKS=!desktopicon',"/GROUP=FEC-RTTY Acceptance-$stamp") } else { @('/TASKS=desktopicon') }
+    $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$installDir", "/LOG=$(Join-Path $run 'install-inno.log')") + $shortcutArgs
     $installed = Run-Program $SetupExe $arguments 'install' 120
     Check ($installed.exit -eq 0) 'Offline install succeeds without elevation or reboot'
     $registration = Read-Installation
-    Check ($null -ne $registration -and $registration.name -eq 'FEC-RTTY - M0NXD' -and $registration.version -eq '0.45.1') 'Settings/Control Panel uninstall entry has correct product/version'
+    Check ($null -ne $registration -and $registration.name -eq 'FEC-RTTY - M0NXD' -and $registration.version -eq '0.46.0') 'Settings/Control Panel uninstall entry has correct product/version'
     Check ($registration.location.TrimEnd('\') -eq $installDir.TrimEnd('\') -and $registration.size_kib -gt 0 -and $registration.quiet) 'InstallLocation, EstimatedSize and quiet-uninstall metadata exist'
     Check-Manifest
     Check (-not (Test-Path (Join-Path $installDir 'extras/VBCABLE_Driver_Pack45.zip'))) 'Optional virtual-cable driver is not bundled'
@@ -101,7 +119,15 @@ try {
     Check ((Get-FileHash (Join-Path $installDir 'licenses/qt/source/qtbase-everywhere-src-6.8.3.tar.xz')).Hash -eq '56001B905601BB9023D399F3BA780D7FA940F3E4861E496A7C490331F49E0B80' -and
         (Get-FileHash (Join-Path $installDir 'licenses/qt/source/qtsvg-everywhere-src-6.8.3.tar.xz')).Hash -eq '35EB516460F00F264EB504BAA253432384351CF23FB9980A5857190E8DEEF438') 'Complete matching Qt source archives accompany installed libraries'
     $shell = New-Object -ComObject WScript.Shell
-    foreach ($path in @((Join-Path $startMenu 'FEC-RTTY - M0NXD.lnk'),$desktopShortcut)) {
+    Check ((Get-FileHash (Join-Path $installDir 'licenses/hamlib/source/hamlib-4.7.2.tar.gz')).Hash -eq 'AE1FCF2DBC80EA0786EA8F047B09399C3F7737D1930442F61A031708ED33E88F' -and
+        (Get-FileHash (Join-Path $installDir 'licenses/libusb/source/libusb-1.0.30.tar.bz2')).Hash -eq 'FEA36F34F9156400209595E300840767AB1A385EDE1DC7EE893015AEA9C6DBAF') 'Complete matching Hamlib/libusb sources accompany installed CAT libraries'
+    Check ((Get-FileHash (Join-Path $installDir 'gui/libusb-1.0.dll')).Hash -eq '9858E2381221619E26A78A2824E5970C2A7EC48CDB75071C19EB7B61BAA268E2' -and
+        (Test-Path (Join-Path $installDir 'gui/libhamlib-4.dll'))) 'Hamlib and updated libusb runtimes installed locally'
+    Check ((Test-Path (Join-Path $installDir 'licenses/REPLACING_CAT.html')) -and
+        (Test-Path (Join-Path $installDir 'docs/RADIO_CONTROL.html'))) 'Offline CAT safety and library replacement guides installed'
+    $testShortcuts = @((Join-Path $startMenu 'FEC-RTTY - M0NXD.lnk'))
+    if (-not $IsolatedShortcuts) { $testShortcuts += $desktopShortcut }
+    foreach ($path in $testShortcuts) {
         Check (Test-Path $path) "Shortcut created: $([IO.Path]::GetFileName($path))"
         $link = $shell.CreateShortcut($path)
         Check ($link.TargetPath -eq (Join-Path $installDir 'gui/fectty-gui.exe') -and $link.WorkingDirectory -eq (Join-Path $installDir 'gui')) 'Shortcut points to installed GUI with correct runtime working directory'
@@ -112,7 +138,7 @@ try {
         $probe = Run-Program (Join-Path $installDir $relative) $probeArgs (($relative -replace '[/\\.]','-')+'-probe')
         Check ($probe.exit -eq 0) "Installed $relative starts with Windows-only PATH and no Qt environment overrides"
     }
-    foreach ($exe in @('fectty-tests.exe','fectty-audit-tests.exe','fectty-gui-text-tests.exe','fectty-waterfall-tests.exe')) {
+    foreach ($exe in @('fectty-tests.exe','fectty-audit-tests.exe','fectty-cat-tests.exe','fectty-gui-text-tests.exe','fectty-waterfall-tests.exe')) {
         $test = Run-Program (Join-Path $installDir "gui/$exe") @() ($exe -replace '\.exe$','') 120
         Check ($test.exit -eq 0) "Installed regression passes: $exe"
     }
@@ -151,13 +177,17 @@ try {
         $guiExe = Join-Path $installDir 'gui/fectty-gui.exe'
         $winmmList = Run-Program (Join-Path $installDir 'bin/fectty-live.exe') @('--list') 'winmm-list'
         $paList = Run-Program (Join-Path $installDir 'gui/fectty-portaudio-smoke.exe') @('--list') 'portaudio-list'
-        Check ($winmmList.output -match '0: CABLE Output' -and $winmmList.output -match '1: CABLE Input') 'Current WinMM cable indices/names verified before transmission'
-        Check ($paList.output -match 'portaudio:1: CABLE Output' -and $paList.output -match 'portaudio:5: CABLE Input') 'Current PortAudio cable indices/names verified before transmission'
+        $wi=[regex]::Match($winmmList.output,'(?m)^\s*([0-9]+): CABLE Output')
+        $wo=[regex]::Match($winmmList.output,'(?m)^\s*([0-9]+): CABLE Input')
+        $pi=[regex]::Match($paList.output,'portaudio:([0-9]+): CABLE Output[^\r\n]*\[MME\]')
+        $po=[regex]::Match($paList.output,'portaudio:([0-9]+): CABLE Input[^\r\n]*\[MME\]')
+        Check ($wi.Success -and $wo.Success) 'Current WinMM cable indices/names verified before transmission'
+        Check ($pi.Success -and $po.Success) 'Current PortAudio MME cable indices/names verified before transmission'
         foreach ($backend in @('winmm','portaudio')) {
-            $inputIndex = if ($backend -eq 'winmm') { '0' } else { '1' }
-            $outputIndex = if ($backend -eq 'winmm') { '1' } else { '5' }
-            $audio = Run-Program (Join-Path $PSHOME 'pwsh.exe') @('-NoProfile','-File',(Join-Path $project 'tools/test-gui-direct.ps1'),'-GuiExe',$guiExe,'-Backend',$backend,'-InputDevice',$inputIndex,'-OutputDevice',$outputIndex,'-SplitOffsets','-EvidenceDir',(Join-Path $run "audio-$backend")) "direct-$backend" 90 -Visible
-            Check ($audio.exit -eq 0) "Installed visible two-direction exact-text audio test: $backend"
+            $inputIndex = if ($backend -eq 'winmm') { $wi.Groups[1].Value } else { $pi.Groups[1].Value }
+            $outputIndex = if ($backend -eq 'winmm') { $wo.Groups[1].Value } else { $po.Groups[1].Value }
+            $audio = Run-Program (Join-Path $PSHOME 'pwsh.exe') @('-NoProfile','-File',(Join-Path $project 'tools/test-gui-direct.ps1'),'-GuiExe',$guiExe,'-Backend',$backend,'-InputDevice',$inputIndex,'-OutputDevice',$outputIndex,'-SplitOffsets','-CatDummy','-EvidenceDir',(Join-Path $run "audio-$backend")) "direct-$backend" 90 -Visible
+            Check ($audio.exit -eq 0) "Installed visible two-direction exact-text audio + Hamlib Dummy CAT test: $backend"
         }
     }
     $userFile = Join-Path $installDir 'user-created.txt'
@@ -173,7 +203,14 @@ try {
     $uninstallRegistration = Read-Installation
     Uninstall-TestCopy
     Check (-not (Test-Path (Join-Path $installDir 'gui/fectty-gui.exe')) -and -not (Test-Path (Join-Path $installDir 'gui/Qt6Widgets.dll'))) 'Owned application/runtime files removed'
-    Check (-not (Test-Path $desktopShortcut) -and -not (Test-Path (Join-Path $startMenu 'FEC-RTTY - M0NXD.lnk'))) 'Installed Start-menu/desktop shortcuts removed'
+    Check (-not (Test-Path (Join-Path $startMenu 'FEC-RTTY - M0NXD.lnk')) -and ($IsolatedShortcuts -or -not (Test-Path $desktopShortcut))) 'Installed test shortcuts removed'
+    if ($IsolatedShortcuts) {
+        $shortcutsUnchanged = $true
+        foreach ($file in $preservedShortcuts) {
+            if (-not (Test-Path -LiteralPath $file.path) -or (Get-FileHash -LiteralPath $file.path).Hash -ne $file.sha256) { $shortcutsUnchanged = $false }
+        }
+        Check $shortcutsUnchanged 'Pre-existing Start-menu/desktop shortcuts unchanged'
+    }
     Check ((Get-Content $userFile -Raw) -eq 'Keep this user-created file.') 'Uninstall preserves user-created files'
     $settingsAfter = if (Test-Path $settings) { (Get-FileHash $settings).Hash } else { $null }
     Check ($settingsBefore -eq $settingsAfter) 'Existing operator settings unchanged through install/test/repair/uninstall'
@@ -185,7 +222,17 @@ try {
     # Cleanup only if the registered path is the exact isolated test copy.
     try { Uninstall-TestCopy } catch { Write-Warning "Test cleanup needs attention: $($_.Exception.Message)" }
 } finally {
-    $report = [ordered]@{ installer=$SetupExe; sha256=(Get-FileHash $SetupExe).Hash; run_directory=$run; isolated_install=$installDir; tests=$results; failure=$failure; audio_test=[bool]$TestAudio; settings_before=$settingsBefore; registration_after=(Read-Installation); note='Host acceptance, not a clean VM or driver installation test. Synthetic user files/test artifacts retained.' }
+    # /GROUP must be honored, but also recover byte-identical original shortcuts
+    # if an older/broken installer disregards isolation or fails mid-test.
+    foreach ($file in $preservedShortcuts) {
+        if (-not (Test-Path -LiteralPath $file.path) -or (Get-FileHash -LiteralPath $file.path).Hash -ne $file.sha256) {
+            if ((Get-FileHash -LiteralPath $file.backup).Hash -ne $file.sha256) { throw 'Original shortcut backup corrupted; manual recovery required.' }
+            New-Item -ItemType Directory -Path (Split-Path $file.path) -Force | Out-Null
+            Copy-Item -LiteralPath $file.backup -Destination $file.path -Force
+            Write-Warning "Restored original shortcut: $([IO.Path]::GetFileName($file.path))"
+        }
+    }
+    $report = [ordered]@{ installer=$SetupExe; sha256=(Get-FileHash $SetupExe).Hash; run_directory=$run; isolated_install=$installDir; tests=$results; failure=$failure; audio_test=[bool]$TestAudio; isolated_shortcuts=[bool]$IsolatedShortcuts; preserved_shortcuts=$preservedShortcuts; settings_before=$settingsBefore; registration_after=(Read-Installation); note='Host acceptance, not a clean VM or driver installation test. Isolated-shortcut mode uses a separate Start-menu group and does not test desktop-shortcut creation. Synthetic user files/test artifacts retained.' }
     [IO.File]::WriteAllText((Join-Path $run 'acceptance.json'),($report | ConvertTo-Json -Depth 7),$utf8)
     $publicReport = ConvertTo-PublicPaths ($report | ConvertTo-Json -Depth 7) -ProjectRoot $project
     [IO.File]::WriteAllText((Join-Path $run 'acceptance.public.json'),$publicReport,$utf8)

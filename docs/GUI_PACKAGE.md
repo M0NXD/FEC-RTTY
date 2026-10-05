@@ -1,4 +1,4 @@
-# FEC-RTTY v0.45.1 GUI operation
+# FEC-RTTY v0.46.0 GUI operation
 
 For the 24-hour experiment's purpose, complete architecture/source map,
 settings, testing, troubleshooting, and remaining work, see the
@@ -19,10 +19,10 @@ For a virtual-cable bench test, install VB-CABLE separately. In Audio, choose:
 - TX output: `CABLE Input`
 - Backend: `Windows Audio (WinMM)` or `PortAudio`
 
-Leave Radio on `NullRig / bench mode`, then press `Start session`. Send a
+Leave Radio on `NullRig / audio only`, then press `Start session`. Send a
 message from another bench instance or the built `source/build/fectty-live.exe`.
 The GUI keeps
-CAT/PTT disabled and shows decoded text plus frame, CRC, gap, and drop
+PTT disarmed in NullRig and shows decoded text plus frame, CRC, gap, and drop
 counters. The Modem page exposes the original fixed FEC-RTTY waveform: 50 baud,
 48 kHz continuous-phase 4-FSK, rate-1/2 convolutional FEC, and 16-column
 interleaving. There is no alternate modem profile selector and no link setup.
@@ -56,7 +56,7 @@ an orange dashed TX center.
 - Sensitivity changes display brightness only, not audio gain or TX volume.
 
 These are audio offsets within the radio's passband, not radio RF/dial tuning.
-CAT/PTT remains disabled. Diagnostics show the acquired residual frequency
+RF tuning is separate on the Radio tab. Diagnostics show the acquired residual frequency
 **offset**. The display uses a 4096-point Hann FFT (11.71875 Hz bin spacing,
 42.67 ms row interval, about 10.24 seconds of history). Numeric tuning
 precision is not a claim of 0.1 Hz spectral resolution or physical clock
@@ -67,13 +67,13 @@ display and are labelled accordingly.
 Output volume and modem gain take effect during a send as new short audio blocks
 are queued. Stop interrupts playback, and failed or cancelled sends retain the
 draft. Audio is generated a frame at a time with one acquisition field for the
-complete message. CAT/PTT lead/tail fields are disabled in this bench build.
+complete message. PTT lead/tail fields are used when CAT is explicitly armed.
 
-The Radio page also has a `Connect / test backend` action. `NullRig` is
-local and safe; `Hamlib / rigctld` opens the configured TCP connection; and
-`OmniRig` checks the installed Windows COM provider. These connection checks
-do not enable CAT/PTT or change the radio, and the modem session remains in
-bench mode until a later on-air integration gate.
+The Radio page supports direct Hamlib serial/USB, rigctld TCP and OmniRig
+Rig 1/2. Connect reads live state only; Read copies the observed dial/mode;
+Apply deliberately writes RF dial/mode. PTT is never armed automatically.
+See [Radio control](RADIO_CONTROL.md) for configuration, lead/tail, TX limits,
+watchdog, cancellation, force release and manual-unkey warnings.
 
 For two direct-mode GUI instances over the installed shared VB-Audio cable,
 select `CABLE Output` for RX and `CABLE Input` for TX in each window. Start
@@ -150,14 +150,15 @@ This section is a helper/deployment reference, not a substitute for SDK setup.
 `source\build.bat` builds the dependency-free bench tools and runs CTest.
 `source\build-gui.bat` builds the Qt GUI, automatically enables PortAudio when
 the local MSYS2 package is present, and deploys the Qt, MinGW, and PortAudio
-runtime DLLs beside the executable. The GUI helper prefers the MSYS2 `mingw64`
+runtime DLLs beside the executable. Hamlib/libusb are enabled and deployed by
+the release GUI helper; set `HAMLIB_ROOT` and `LIBUSB_ROOT` to your matching SDK/DLL roots. The GUI helper prefers the MSYS2 `mingw64`
 toolchain because the tested official Qt MinGW package uses
 the MSVCRT runtime. This avoids the startup heap corruption caused by mixing
 the UCRT MinGW toolchain with Qt.
 
 For an unpacked source package, set `QT_ROOT` to your Qt SDK directory and,
 if needed, `TOOLCHAIN_ROOT` to the compatible MinGW installation. The GUI build
-script honors these overrides and runs core, GUI text, and waterfall tests after
+script honors these overrides and runs core, CAT, GUI text, and waterfall tests after
 deployment. The core helper preserves an existing CMake generator and deploys
 runtime DLLs from the compiler recorded in its cache.
 

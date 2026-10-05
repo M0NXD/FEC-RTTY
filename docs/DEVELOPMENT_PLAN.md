@@ -1,7 +1,7 @@
 # FEC-RTTY development roadmap
 
 The project began as a 24-hour digital-mode experiment. This roadmap describes
-application 0.45.1 and remaining engineering work, not a promise that every
+application 0.46.0 and remaining engineering work, not a promise that every
 planned feature is implemented. See the [project guide](PROJECT_GUIDE.md)
 for behavior and the [test guide](TESTING.md) for verification procedures.
 
@@ -9,8 +9,8 @@ for behavior and the [test guide](TESTING.md) for verification procedures.
 
 Keep one fixed 50-baud/48 kHz four-tone FSK waveform with convolutional FEC,
 direct UTF-8 frames, CRC-gated delivery, and no encryption. The GUI is linkless:
-no HELLO/ACK negotiation or retransmission. Radio CAT/PTT remains disabled;
-`NullRig / bench mode` is the normal test configuration.
+no HELLO/ACK negotiation or retransmission. Optional CAT is implemented with
+explicit arming; `NullRig / audio only` remains the normal cable configuration.
 
 A protocol-breaking change requires an explicit version/compatibility decision,
 updated specification and independent vectors. A successful local audio test
@@ -26,6 +26,7 @@ alone is not an interoperability or RF acceptance gate.
 | v0.44.1 | Unicode, cancellable streaming TX, parsing/settings/device audits |
 | v0.45.0 | Live waterfall and linked/split RX/TX audio tuning |
 | v0.45.1 | Noise-prefixed acquisition and automatic-send completion fixes |
+| v0.46.0 | Direct Hamlib/TCP/OmniRig CAT, explicit PTT, readback and safety regressions |
 | Installer experiment | Per-user offline packaging, repair and standard Windows uninstall |
 
 Dated evidence is indexed in [PROJECT_INDEX.md](../PROJECT_INDEX.md). GUI design
@@ -46,9 +47,9 @@ historical, not additions to the active GUI feature list. The
    not validate simultaneous isolated directions.
 3. **Interoperability:** freeze complete byte/bit/symbol/WAV vectors and check
    them with an independent implementation.
-4. **Radio integration:** define and test safe CAT/PTT lead/tail, watchdog,
-   disconnect and shutdown behavior before enabling keying. Then perform
-   controlled actual-radio audio/RF tests, with drive/ALC and failure captures.
+4. **Radio acceptance:** software CAT/PTT lead/tail, watchdog and failure
+   regressions are implemented. Perform supervised actual-radio/OmniRig and
+   RF tests with drive/ALC, hardware TX timeout and failure captures.
 5. **UI/accessibility:** extend monitor/scaling, keyboard/screen-reader and
    contrast acceptance. Logbook/macros/identity and separate preference
    profiles remain future product work.

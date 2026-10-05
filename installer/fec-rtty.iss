@@ -6,7 +6,7 @@
   #error OutputPath is required
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.45.1"
+  #define AppVersion "0.46.0"
 #endif
 
 [Setup]
@@ -17,16 +17,19 @@ AppPublisher=M0NXD
 AppVerName=FEC-RTTY - M0NXD {#AppVersion}
 DefaultDirName={localappdata}\Programs\FEC-RTTY
 DefaultGroupName=FEC-RTTY - M0NXD
-DisableProgramGroupPage=yes
+; Keep the page enabled so explicit /GROUP isolation is honored, including repair.
+DisableProgramGroupPage=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
 MinVersion=10.0.17763
 OutputDir={#OutputPath}
 OutputBaseFilename=FEC-RTTY-{#AppVersion}-Setup-x64
-VersionInfoVersion={#AppVersion}.2
+VersionInfoVersion={#AppVersion}.1
 VersionInfoDescription=FEC-RTTY - M0NXD offline installer
 Compression=lzma2
+LZMADictionarySize=4096
+LZMANumBlockThreads=1
 SolidCompression=yes
 WizardStyle=modern
 WizardSizePercent=110

@@ -2,7 +2,8 @@ FEC-RTTY - M0NXD
 
 This began as an experiment to build an amateur-radio digital mode in 24 hours.
 It remains experimental: local bench acceptance is not real-radio certification.
-Messages are unencrypted. CAT/PTT remains disabled.
+Messages are unencrypted. CAT/PTT is optional and requires explicit arming.
+Hamlib is included. OmniRig and radio USB drivers must be installed separately.
 
 Setup installs for the current Windows user and includes Qt, PortAudio and
 matching compiler runtime DLLs, source, documentation and dependency notices.

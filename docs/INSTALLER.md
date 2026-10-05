@@ -1,10 +1,9 @@
 # FEC-RTTY Windows installation
 
 FEC-RTTY began as a 24-hour digital-mode experiment. The current Windows
-release packages the tested **v0.45.1** application; packaging revision **2**
-updates public documentation/notices, includes corresponding Qt sources,
-and removes the optional bundled driver and software-OpenGL/D3D DLLs.
-It does not change the modem, enable CAT/PTT or add encryption.
+release packages application **v0.46.0**, installer revision **1**, including
+optional CAT support and its Hamlib/libusb runtime dependencies. The modem
+waveform and unencrypted messages are unchanged. Arming is off by default.
 
 ## Download, install and run
 
@@ -17,7 +16,7 @@ Requires Windows 10 1809+ or Windows 11 **x64**, with a 48 kHz mono-capable
 audio device. ARM64/32-bit Windows are not claimed. The OS baseline follows
 [Qt 6.8's supported platforms](https://doc.qt.io/qt-6.8/supported-platforms.html).
 
-Run `FEC-RTTY-0.45.1-Setup-x64.exe`. It installs for the current user, normally
+Run `FEC-RTTY-0.46.0-Setup-x64.exe`. It installs for the current user, normally
 at `%LOCALAPPDATA%\Programs\FEC-RTTY`, without elevation. Launch
 **FEC-RTTY - M0NXD** from the Start menu; the same executable can run twice.
 Offline documentation starts at the installed `index.html`.
@@ -27,7 +26,8 @@ For the portable ZIP, extract every file into an empty folder and run
 does not register an uninstaller; delete the extracted application files when
 finished, keeping any user files you want to retain.
 
-The packages include Qt 6.8.3, PortAudio and matching MinGW runtime DLLs.
+The packages include Qt 6.8.3, PortAudio, Hamlib 4.7.2, libusb 1.0.30 and matching MinGW DLLs.
+OmniRig and manufacturer-specific radio USB drivers are separate optional inputs.
 No compiler, Qt SDK, CMake, Python, .NET or separate Visual C++ redistributable
 is needed to run this build. Installation makes no downloads, does not change
 PATH or system DLLs, and does not replace Windows/audio drivers.
@@ -35,7 +35,8 @@ CLI/UCRT DLLs stay in `bin/`; GUI/MSVCRT-compatible DLLs stay in `gui/`.
 Never exchange the same-named DLLs between them.
 
 Source, offline documentation, test helpers, dependency notices, complete
-unmodified Qt Base/SVG source archives and a SHA256 payload inventory are included.
+unmodified Qt Base/SVG, Hamlib and libusb sources, library replacement
+instructions and a SHA256 payload inventory are included.
 Those sources are not a ready-to-run development SDK.
 
 ## Standard Windows uninstall and repair
@@ -67,7 +68,8 @@ See [Testing](TESTING.md) for endpoint verification and sequential audio tests.
 
 Building the application itself is documented in [BUILDING.md](BUILDING.md).
 The release builder needs PowerShell 7, a compatible Inno Setup compiler,
-the pinned accepted v0.45.1 runtime/source archive, Qt SDK license/SPDX inputs,
+the recorded v0.46.0 runtime/source archive and installer/accepted-release.json,
+Hamlib/libusb sources/license inputs, Qt SDK license/SPDX inputs,
 compiler/PortAudio notices and official Qt Base/SVG 6.8.3 source archives.
 These are separate inputs, not included in a fresh source checkout.
 
@@ -79,10 +81,10 @@ Overrides: `-ReleaseDir`, `-AcceptedArchive`, `-IsccExe`, `-QtRoot`,
 `-RuntimeLicenseRoot`, `-QtLicenseDir`, `-QtSourceDir`, `-OutputDir`.
 There are no downloads in this builder. Supply an empty output folder.
 Default inputs live in ignored `third_party/` and local `releases/`;
-outputs are written to `releases/latest/`.
+outputs are written to `releases/v0.46.0-public/`.
 
 Every input runtime/plugin is compared to its accepted archive; GUI/live hashes
-and canonical modem source/tests are checked. Qt source archives are SHA256-pinned.
+and canonical source/tests are checked. Qt/Hamlib/libusb source archives are SHA256-pinned.
 Only the optional `opengl32sw.dll` and `D3Dcompiler_47.dll` are omitted from the
 verified runtime inventory; the Widgets interface uses raster painting.
 The builder renders and validates offline navigation, copies notices/source,
@@ -99,9 +101,14 @@ unselected; binary availability does not grant a general source license.
 ~~~powershell
 pwsh -NoProfile -File .\installer\test-installer.ps1
 pwsh -NoProfile -File .\installer\test-installer.ps1 -TestAudio
+pwsh -NoProfile -File .\installer\test-installer.ps1 -TestAudio -IsolatedShortcuts
 ~~~
 
 The test refuses an existing installed FEC-RTTY or pre-existing shortcuts.
+For existing shortcuts, -IsolatedShortcuts uses a unique test Start-menu group,
+leaves the desktop shortcut untouched and verifies existing shortcut hashes.
+This alternative does not test creating a desktop shortcut. It still refuses
+an existing registered installation, which must not be replaced for a bench test.
 It installs into an isolated spaces/Unicode path, rejects an unrelated
 occupied folder, checks hashes/registry/shortcuts, runs regressions with a
 Windows-only PATH, opens two visible GUI windows, tests repair and invokes
@@ -109,10 +116,11 @@ the exact registered Windows uninstaller. Settings, user files and cable
 drivers must survive. Raw/private outputs remain in ignored staging;
 `acceptance.public.json` is its redacted companion.
 
-Audio mode verifies the recorded WinMM 0/1 and PortAudio 1/5 endpoint names
-before transmitting. Those are test-host IDs, not universal settings.
+Audio mode resolves current WinMM and PortAudio MME cable IDs by name before
+transmitting. Device numbers are not universal or stable.
 It sends exact Unicode/multiline payloads sequentially in both directions
-on each backend, with NullRig/CAT/PTT disabled.
+on each backend, with real Hamlib Dummy PTT key/release and no physical CAT.
+See [CAT results](../evidence/CAT_RELEASE_20261005.md) and [Radio control](RADIO_CONTROL.md).
 
 Host acceptance is not a clean Windows VM test or an automated Settings-UI click.
 Other computers/accounts, unplug/replug, long independent clocks, migration,

@@ -1,6 +1,8 @@
 #ifdef FECTTY_HAS_QT
 
 #include "fectty/rig_control.hpp"
+#include "fectty/radio_controller.hpp"
+#include "fectty/hamlib_rig.hpp"
 #include "fectty/bench_exit.hpp"
 #include "fectty/gui_text.hpp"
 #include "fectty/parse.hpp"
@@ -44,6 +46,7 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QSlider>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSaveFile>
 #include <QSpinBox>
@@ -122,7 +125,19 @@ class MainWindow final : public QMainWindow {
     QLabel* output_volume_value_ = nullptr;
     QTimer* poll_timer_ = nullptr;
     fectty::AppSettings settings_;
-    std::unique_ptr<fectty::IRigControl> rig_control_;
+    fectty::RadioController radio_;
+    std::future<bool> radio_operation_;
+    unsigned radio_revision_ = 0;
+    std::chrono::steady_clock::time_point radio_next_read_{};
+    QComboBox *hamlib_model_ = nullptr, *omni_number_ = nullptr, *ptt_source_ = nullptr, *radio_mode_ = nullptr;
+    QLineEdit* hamlib_device_ = nullptr;
+    QSpinBox *hamlib_baud_ = nullptr, *tx_limit_ = nullptr;
+    QDoubleSpinBox* radio_frequency_ = nullptr;
+    QCheckBox* ptt_armed_ = nullptr;
+    QLabel* radio_details_ = nullptr;
+    QPushButton *radio_connect_ = nullptr, *radio_disconnect_ = nullptr, *radio_read_ = nullptr, *radio_apply_ = nullptr;
+    std::vector<QWidget*> radio_config_widgets_;
+    bool copy_radio_on_read_ = false;
     QString settings_file_;
     std::unique_ptr<fectty::IAudioIo> audio_;
     fectty::ReliableReceiver receiver_;
@@ -141,6 +156,7 @@ class MainWindow final : public QMainWindow {
     std::atomic<bool> tx_busy_{false};
     std::atomic<bool> tx_success_{false};
     std::atomic<bool> tx_cancel_{false};
+    std::atomic<size_t> tx_generated_samples_{0};
     std::thread tx_thread_;
     std::mutex audio_write_mutex_;
     std::atomic<double> tx_scale_{0.5};
@@ -182,16 +198,66 @@ class MainWindow final : public QMainWindow {
         if (audio_) add_event(QStringLiteral("RX retuned to %1 Hz; waiting for the next burst").arg(center_frequency_->value(), 0, 'f', 1));
     }
 
+    void update_radio_controls() {
+        if (!ptt_armed_ || !ptt_lead_) return;
+        const auto backend=rig_backend_->currentData().toString();
+        const auto status=radio_.status();
+        const bool idle=!tx_busy_.load()&&!radio_operation_.valid()&&!status.ptt_owned;
+        for(auto* w:radio_config_widgets_)w->setEnabled(idle);
+        rig_host_->setEnabled(idle&&backend=="rigctld");rig_port_->setEnabled(idle&&backend=="rigctld");
+        hamlib_model_->setEnabled(idle&&backend=="hamlib");hamlib_device_->setEnabled(idle&&backend=="hamlib");
+        hamlib_baud_->setEnabled(idle&&backend=="hamlib");omni_number_->setEnabled(idle&&backend=="omnirig");
+        ptt_source_->setEnabled(idle&&backend!="none"&&backend!="omnirig");
+        radio_connect_->setEnabled(idle&&backend!="none");
+        radio_disconnect_->setEnabled(idle&&status.rig.connected);
+        radio_read_->setEnabled(idle&&status.rig.connected);
+        radio_apply_->setEnabled(idle&&status.rig.connected&&!status.fault&&!status.rig.transmitting);
+        ptt_armed_->setEnabled(idle&&backend!="none"&&status.rig.connected&&!status.fault);
+        ptt_lead_->setEnabled(idle&&ptt_armed_->isChecked());ptt_tail_->setEnabled(idle&&ptt_armed_->isChecked());
+        if(audio_&&!tx_busy_.load())send_->setEnabled(!radio_operation_.valid()&&!status.ptt_owned&&
+            (!ptt_armed_->isChecked()||(status.rig.connected&&!status.fault&&!status.ptt_owned)));
+    }
+
     void disconnect_radio_for_reconfiguration(const QString& reason) {
-        const bool was_connected = rig_control_ != nullptr;
-        if (rig_control_) {
-            rig_control_->disconnect();
-            rig_control_.reset();
+        if(!ptt_armed_)return;
+        ptt_armed_->setChecked(false);
+        if(radio_.status().rig.connected||radio_operation_.valid()){
+            radio_operation_=radio_.disconnect();add_event(reason);
         }
-        rig_state_->setText(rig_backend_->currentData().toString() == QStringLiteral("none")
-                                ? QStringLiteral("NullRig")
-                                : QStringLiteral("Not connected"));
-        if (was_connected) add_event(reason);
+        update_radio_controls();
+    }
+
+    void poll_radio() {
+        if(radio_operation_.valid()&&radio_operation_.wait_for(std::chrono::milliseconds(0))==std::future_status::ready){
+            const bool ok=radio_operation_.get();
+            if(!ok)add_event(QString::fromStdString(radio_.status().message));
+            if(copy_radio_on_read_&&ok){
+                const auto read=radio_.status().rig;radio_frequency_->setValue(read.frequency_hz/1e6);
+                const int index=radio_mode_->findData(int(read.mode));if(index>=0)radio_mode_->setCurrentIndex(index);
+            }
+            copy_radio_on_read_=false;
+            radio_next_read_=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        }
+        auto status=radio_.status();
+        if(status.revision!=radio_revision_){
+            radio_revision_=status.revision;
+            rig_state_->setText(status.fault?"CAT fault":status.ptt_owned?"CAT TX":status.rig.connected?"CAT ready":"CAT off");
+            radio_details_->setStyleSheet(status.fault?"color: #ffb45e; font-weight: 700":"color: #e7edf5");
+            radio_details_->setText(QStringLiteral("%1\n%2 MHz · %3 · %4").arg(QString::fromStdString(status.message))
+                .arg(status.rig.frequency_hz/1e6,0,'f',6)
+                .arg(status.rig.mode==fectty::RigMode::USB?"USB":status.rig.mode==fectty::RigMode::LSB?"LSB":
+                     status.rig.mode==fectty::RigMode::DataUSB?"Data USB":status.rig.mode==fectty::RigMode::DataLSB?"Data LSB":"Unknown mode")
+                .arg(status.rig.transmitting?"Radio TX":"Radio RX"));
+            if(status.fault){
+                if(tx_busy_.load()){tx_cancel_=true;if(audio_)audio_->cancel_write();}
+                add_event(QString::fromStdString(status.message));
+            }
+        }
+        if(status.rig.connected&&!status.fault&&!tx_busy_.load()&&!radio_operation_.valid()&&
+           std::chrono::steady_clock::now()>=radio_next_read_){
+            radio_operation_=radio_.refresh();radio_next_read_=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        }
+        update_radio_controls();
     }
 
     void migrate_legacy_settings() {
@@ -321,6 +387,7 @@ class MainWindow final : public QMainWindow {
     }
 
     void poll_session() {
+        poll_radio();
         std::string received_text;
         std::vector<fectty::WaterfallSpectrum::Row> rows;
         {
@@ -440,7 +507,7 @@ class MainWindow final : public QMainWindow {
                                   ? QStringLiteral("TX only")
                                   : QStringLiteral("Running"));
         state_->setText(QStringLiteral("Search"));
-        add_event(QStringLiteral("Direct %1 modem session started; NullRig/CAT/PTT disabled")
+        add_event(QStringLiteral("%1 modem session started; PTT requires explicit arming")
                       .arg(backend == QStringLiteral("portaudio") ? QStringLiteral("PortAudio")
                                                                     : QStringLiteral("WinMM")));
         return true;
@@ -453,6 +520,8 @@ class MainWindow final : public QMainWindow {
             tx_thread_.join();
             tx_busy_ = false;
         }
+        if(radio_.status().ptt_owned&&!radio_.end_tx().get())
+            add_event(QString::fromStdString(radio_.status().message));
         rx_stop_ = true;
         if (rx_thread_.joinable()) rx_thread_.join();
         if (audio_) {
@@ -495,6 +564,20 @@ class MainWindow final : public QMainWindow {
         const auto utf8 = text.toUtf8();
         const std::string message(utf8.constData(),
                                   static_cast<size_t>(utf8.size()));
+        const bool cat=ptt_armed_->isChecked();
+        const auto radio=radio_.status();
+        if(radio_operation_.valid()||radio.ptt_owned||(cat&&(!radio.rig.connected||radio.fault))){
+            add_event("CAT is busy, disconnected or faulted; reconnect before Send");return;
+        }
+        const auto ptt=ptt_source_->currentData().toString()=="mic"?fectty::PttMode::Mic:
+                       ptt_source_->currentData().toString()=="data"?fectty::PttMode::Data:fectty::PttMode::On;
+        const int lead=ptt_lead_->value(),tail=ptt_tail_->value(),limit=tx_limit_->value();
+        const double duration=0.6+(8.0*message.size()+54.0*((message.size()+7)/8))/50.0;
+        if(cat&&duration+(lead+tail)/1000.0+3.0>limit){
+            add_event("Message exceeds the CAT TX time limit; shorten it or increase the limit");return;
+        }
+        tx_cancel_=false;
+        tx_generated_samples_=0;
         refresh_tx_scale();
         tx_success_ = false;
         if (tx_thread_.joinable()) tx_thread_.join();
@@ -511,37 +594,56 @@ class MainWindow final : public QMainWindow {
                       .arg(utf8.size()));
         auto tx_config = fectty::FskConfig{};
         for (auto& tone : tx_config.tones) tone += tx_frequency_->value() - 1500.0;
-        tx_thread_ = std::thread([this, message, tx_config] {
+        tx_thread_ = std::thread([this, message, tx_config, cat, ptt, lead, tail, limit] {
             std::string error;
+            auto cancelled=[this,cat]{return tx_cancel_.load()||(cat&&radio_.status().fault);};
+            auto delay=[&](int ms){
+                const auto end=std::chrono::steady_clock::now()+std::chrono::milliseconds(ms);
+                while(std::chrono::steady_clock::now()<end&&!cancelled())std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                return !cancelled();
+            };
             try {
+            if(cat){
+                if(!radio_.begin_tx(ptt,std::chrono::seconds(limit)).get())
+                    throw std::runtime_error(radio_.status().message);
+                if(!delay(lead))throw std::runtime_error("Transmission cancelled before audio");
+            }
             fectty::ModemTransmitStream stream(message, tx_config);
-            if (tx_cancel_.load()) {
+            if (cancelled()) {
                 error = "Transmission cancelled";
             } else {
                 std::lock_guard write_lock(audio_write_mutex_);
                 bool tail_sent = false;
-                const bool written = audio_ && audio_->write_stream([this, &stream, &tail_sent] {
-                    if (tx_cancel_.load()) return std::vector<float>{};
+                const bool written = audio_ && audio_->write_stream([this, &stream, &tail_sent, &cancelled] {
+                    if (cancelled()) return std::vector<float>{};
                     auto samples = stream.next();
                     // Drain the output device's final partial hardware block.
                     // This is quiet audio after the burst, not another frame.
                     if (samples.empty() && !tail_sent) {
                         tail_sent = true;
+                        tx_generated_samples_.fetch_add(4800);
                         return std::vector<float>(4800, 0.0f);
                     }
                     const auto scale = tx_scale_.load();
+                    tx_generated_samples_.fetch_add(samples.size());
                     for (auto& sample : samples) sample = static_cast<float>(sample * scale);
                     return samples;
                 });
-                if (!written || tx_cancel_.load()) {
+                if (!written || cancelled()) {
                     error = audio_ ? audio_->last_error() : "Audio output failed";
-                    if (error.empty()) error = tx_cancel_.load() ? "Transmission cancelled" : "Audio output failed";
+                    if (error.empty()) error = cancelled() ? "Transmission cancelled" : "Audio output failed";
                 }
             }
+            if(cat&&error.empty()&&!delay(tail))error="Transmission cancelled during PTT tail";
             } catch (const std::exception& failure) {
                 error = failure.what();
             } catch (...) {
                 error = "Unexpected transmission failure";
+            }
+            if(cat){
+                const bool released=radio_.end_tx().get();
+                const auto status=radio_.status();
+                if(!released||status.fault)error=status.message;
             }
             tx_success_ = error.empty();
             if (!tx_success_.load()) {
@@ -555,16 +657,17 @@ class MainWindow final : public QMainWindow {
     QWidget* make_header() {
         auto* header = new QFrame;
         header->setObjectName(QStringLiteral("header"));
-        auto* layout = new QHBoxLayout(header);
+        auto* layout = new QGridLayout(header);
         layout->setContentsMargins(18, 14, 18, 14);
         layout->setSpacing(18);
         auto* brand = new QLabel(QStringLiteral("FEC-RTTY"));
         brand->setObjectName(QStringLiteral("brand"));
         auto* subtitle = new QLabel(QStringLiteral("Reliable digital radio text"));
         subtitle->setObjectName(QStringLiteral("subtitle"));
-        layout->addWidget(brand);
-        layout->addWidget(subtitle);
-        layout->addStretch();
+        subtitle->setWordWrap(true);
+        layout->addWidget(brand,0,0);
+        layout->addWidget(subtitle,0,1,1,2);
+        int pill_column=0;
 
         auto add_pill = [&](const QString& title, QLabel*& target) {
             auto* box = new QFrame;
@@ -578,7 +681,7 @@ class MainWindow final : public QMainWindow {
             target = value_label();
             box_layout->addWidget(caption);
             box_layout->addWidget(target);
-            layout->addWidget(box);
+            layout->addWidget(box,1,pill_column++);
         };
         add_pill(QStringLiteral("RX"), state_);
         add_pill(QStringLiteral("Audio"), audio_state_);
@@ -746,112 +849,121 @@ class MainWindow final : public QMainWindow {
     }
 
     QWidget* make_radio_page() {
-        auto* page = new QWidget;
-        auto* layout = new QVBoxLayout(page);
-        layout->setContentsMargins(14, 14, 14, 14);
-        layout->setSpacing(12);
-        auto* form = new QFormLayout;
-        form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-        rig_backend_ = new QComboBox;
-        rig_backend_->addItem(QStringLiteral("NullRig / bench mode"), QStringLiteral("none"));
-        rig_backend_->addItem(QStringLiteral("Hamlib / rigctld"), QStringLiteral("rigctld"));
-        rig_backend_->addItem(QStringLiteral("OmniRig"), QStringLiteral("omnirig"));
-        rig_host_ = new QLineEdit(QStringLiteral("127.0.0.1"));
-        rig_port_ = new QSpinBox;
-        rig_port_->setRange(1, 65535);
-        rig_port_->setValue(4532);
-        form->addRow(QStringLiteral("Control method"), rig_backend_);
-        form->addRow(QStringLiteral("Host"), rig_host_);
-        form->addRow(QStringLiteral("Port"), rig_port_);
+        auto* page=new QWidget;auto* layout=new QVBoxLayout(page);layout->setContentsMargins(14,14,14,14);
+        auto* form=new QFormLayout;form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+        form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+        rig_backend_=new QComboBox;rig_backend_->addItem("NullRig / audio only","none");
+#ifdef FECTTY_HAS_HAMLIB
+        rig_backend_->addItem("Hamlib / direct serial or USB","hamlib");
+#endif
+        rig_backend_->addItem("Hamlib / rigctld TCP","rigctld");
+#ifdef _WIN32
+        rig_backend_->addItem("OmniRig","omnirig");
+#endif
+        hamlib_model_=new QComboBox;hamlib_model_->addItem("Select your radio",0);
+#ifdef FECTTY_HAS_HAMLIB
+        for(const auto& [id,name]:fectty::available_hamlib_models())hamlib_model_->addItem(QString::fromStdString(name),id);
+#endif
+        hamlib_model_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);hamlib_model_->setMinimumContentsLength(12);
+        hamlib_device_=new QLineEdit;hamlib_device_->setPlaceholderText("COM port, e.g. COM4");
+        hamlib_baud_=new QSpinBox;hamlib_baud_->setRange(300,115200);hamlib_baud_->setValue(9600);
+        rig_host_=new QLineEdit("127.0.0.1");
+        rig_host_->setToolTip("Numeric IPv4/IPv6 address or localhost. rigctld must already be running.");
+        rig_port_=new QSpinBox;rig_port_->setRange(1,65535);rig_port_->setValue(4532);
+        omni_number_=new QComboBox;omni_number_->addItem("Rig 1",1);omni_number_->addItem("Rig 2",2);
+        radio_frequency_=new QDoubleSpinBox;radio_frequency_->setRange(0.000001,2147.483647);
+        radio_frequency_->setDecimals(6);radio_frequency_->setSuffix(" MHz");radio_frequency_->setValue(14.080);
+        radio_frequency_->setKeyboardTracking(false);
+        radio_frequency_->setToolTip("RF dial frequency. Changes the radio only when Apply is pressed. Not the waterfall audio offset.");
+        radio_mode_=new QComboBox;
+        radio_mode_->addItem("USB",int(fectty::RigMode::USB));radio_mode_->addItem("LSB",int(fectty::RigMode::LSB));
+        radio_mode_->addItem("Data USB",int(fectty::RigMode::DataUSB));radio_mode_->addItem("Data LSB",int(fectty::RigMode::DataLSB));
+        ptt_source_=new QComboBox;ptt_source_->addItem("Radio default","on");ptt_source_->addItem("Microphone input","mic");ptt_source_->addItem("Data input","data");
+        tx_limit_=new QSpinBox;tx_limit_->setRange(1,600);tx_limit_->setValue(120);tx_limit_->setSuffix(" s");
+        tx_limit_->setToolTip("Maximum keyed time. Long messages are rejected before keying; watchdog cancels on expiry.");
+        form->addRow("Control method",rig_backend_);form->addRow("Radio model",hamlib_model_);
+        form->addRow("Serial / USB port",hamlib_device_);form->addRow("Baud rate",hamlib_baud_);
+        form->addRow("TCP host",rig_host_);form->addRow("TCP port",rig_port_);form->addRow("OmniRig slot",omni_number_);
         layout->addLayout(form);
-        auto* note = new QLabel(QStringLiteral(
-            "NullRig is the safe default. CAT/PTT remains disabled in this bench build. Connect tests backend availability."));
-        note->setWordWrap(true);
-        note->setObjectName(QStringLiteral("helpText"));
-        layout->addWidget(note);
-        auto* connect_button = new QPushButton(QStringLiteral("Connect / test backend"));
-        layout->addWidget(connect_button);
-        layout->addStretch();
-        connect(rig_backend_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this] {
-            disconnect_radio_for_reconfiguration(
-                QStringLiteral("Radio backend changed; previous connection closed"));
-            const bool network = rig_backend_->currentData().toString() == QStringLiteral("rigctld");
-            rig_host_->setEnabled(network);
-            rig_port_->setEnabled(network);
+        auto* connections=new QHBoxLayout;
+        radio_connect_=new QPushButton("Connect");radio_disconnect_=new QPushButton("Disconnect");radio_read_=new QPushButton("Read");
+        for(auto* w:{radio_connect_,radio_disconnect_,radio_read_})connections->addWidget(w);
+        layout->addLayout(connections);
+        auto* dial=new QFormLayout;dial->setRowWrapPolicy(QFormLayout::WrapLongRows);
+        dial->addRow("RF dial",radio_frequency_);dial->addRow("Radio mode",radio_mode_);
+        radio_apply_=new QPushButton("Apply dial + mode");dial->addRow(radio_apply_);
+        dial->addRow("PTT source",ptt_source_);dial->addRow("TX time limit",tx_limit_);layout->addLayout(dial);
+        ptt_armed_=new QCheckBox("Arm CAT PTT for Send");
+        ptt_armed_->setToolTip("Off on every launch. When off, Send outputs audio only; VOX or external software can still key your radio.");
+        layout->addWidget(ptt_armed_);
+        auto* emergency=new QPushButton("Stop TX / force PTT OFF");
+        emergency->setStyleSheet("QPushButton { background: #743a30; color: #ffffff; border-color: #ffb45e; }");
+        radio_details_=new QLabel("Radio disconnected — PTT not armed");radio_details_->setWordWrap(true);
+        radio_details_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        auto* note=new QLabel("Connect reads status only. Read copies the current dial/mode into the fields. Apply changes the radio explicitly. OmniRig must be installed/configured separately and uses generic PTT. Turn VOX off when testing audio only. If release is not confirmed, unkey the radio manually.");
+        note->setWordWrap(true);note->setObjectName("helpText");layout->addWidget(note);layout->addStretch();
+        radio_config_widgets_={rig_backend_,hamlib_model_,hamlib_device_,hamlib_baud_,rig_host_,rig_port_,
+                               omni_number_,radio_frequency_,radio_mode_,ptt_source_,tx_limit_};
+        auto changed=[this]{disconnect_radio_for_reconfiguration("Radio connection settings changed; reconnect before arming PTT");};
+        connect(rig_backend_,qOverload<int>(&QComboBox::currentIndexChanged),this,changed);
+        connect(hamlib_model_,qOverload<int>(&QComboBox::currentIndexChanged),this,changed);
+        connect(hamlib_device_,&QLineEdit::editingFinished,this,changed);
+        connect(hamlib_baud_,qOverload<int>(&QSpinBox::valueChanged),this,changed);
+        connect(rig_host_,&QLineEdit::editingFinished,this,changed);
+        connect(rig_port_,qOverload<int>(&QSpinBox::valueChanged),this,changed);
+        connect(omni_number_,qOverload<int>(&QComboBox::currentIndexChanged),this,changed);
+        connect(radio_connect_,&QPushButton::clicked,this,[this]{connect_radio_backend();});
+        connect(radio_disconnect_,&QPushButton::clicked,this,[this]{
+            ptt_armed_->setChecked(false);radio_operation_=radio_.disconnect();update_radio_controls();
         });
-        connect(rig_host_, &QLineEdit::editingFinished, this, [this] {
-            disconnect_radio_for_reconfiguration(
-                QStringLiteral("Radio host changed; previous connection closed"));
+        connect(radio_read_,&QPushButton::clicked,this,[this]{
+            radio_operation_=radio_.refresh();copy_radio_on_read_=true;update_radio_controls();
         });
-        connect(rig_port_, qOverload<int>(&QSpinBox::valueChanged), this, [this] {
-            disconnect_radio_for_reconfiguration(
-                QStringLiteral("Radio port changed; previous connection closed"));
+        connect(radio_apply_,&QPushButton::clicked,this,[this]{
+            radio_operation_=radio_.apply(static_cast<uint64_t>(std::llround(radio_frequency_->value()*1e6)),
+                static_cast<fectty::RigMode>(radio_mode_->currentData().toInt()));update_radio_controls();
         });
-        connect(connect_button, &QPushButton::clicked, this, [this] {
-            connect_radio_backend();
+        connect(ptt_armed_,&QCheckBox::toggled,this,[this](bool armed){
+            add_event(armed?"CAT PTT armed — Send can key the radio":"CAT PTT disarmed — audio only");update_radio_controls();
         });
-        const bool network = rig_backend_->currentData().toString() == QStringLiteral("rigctld");
-        rig_host_->setEnabled(network);
-        rig_port_->setEnabled(network);
-        return page;
+        connect(emergency,&QPushButton::clicked,this,[this]{
+            tx_cancel_=true;if(audio_)audio_->cancel_write();
+            ptt_armed_->setChecked(false);radio_operation_=radio_.emergency_off();update_radio_controls();
+        });
+        auto* scroll=new QScrollArea;scroll->setWidgetResizable(true);scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setWidget(page);
+        auto* panel=new QWidget;auto* panel_layout=new QVBoxLayout(panel);
+        panel_layout->setContentsMargins(8,8,8,8);
+        panel_layout->addWidget(radio_details_);panel_layout->addWidget(scroll,1);
+        panel_layout->addWidget(emergency);return panel;
     }
 
     void connect_radio_backend() {
-        if (rig_control_) {
-            rig_control_->disconnect();
-            rig_control_.reset();
+        ptt_armed_->setChecked(false);
+        const auto backend=rig_backend_->currentData().toString();
+        fectty::RadioController::Factory factory;
+        if(backend=="rigctld"){
+            const auto host=rig_host_->text().trimmed().toStdString();const auto port=static_cast<uint16_t>(rig_port_->value());
+            factory=[host,port]{return std::make_unique<fectty::NetRigctlControl>(host,port);};
         }
-
-        const auto backend = rig_backend_->currentData().toString();
-        if (backend == QStringLiteral("none")) {
-            auto candidate = std::make_unique<fectty::NullRigControl>();
-            if (candidate->connect()) {
-                rig_control_ = std::move(candidate);
-                rig_state_->setText(QStringLiteral("NullRig ready"));
-                add_event(QStringLiteral("NullRig connected; radio control is simulated"));
-            } else {
-                rig_state_->setText(QStringLiteral("Not connected"));
-                add_event(QStringLiteral("NullRig connection failed"));
-            }
-            return;
-        }
-
-        if (backend == QStringLiteral("rigctld")) {
-            const auto host = rig_host_->text().trimmed().toStdString();
-            const auto port = static_cast<uint16_t>(rig_port_->value());
-            auto candidate = std::make_unique<fectty::NetRigctlControl>(host, port);
-            if (candidate->connect()) {
-                rig_control_ = std::move(candidate);
-                rig_state_->setText(QStringLiteral("rigctld connected"));
-                add_event(QStringLiteral("Connected to rigctld at %1:%2; CAT/PTT remains off")
-                              .arg(QString::fromStdString(host))
-                              .arg(port));
-            } else {
-                rig_state_->setText(QStringLiteral("Not connected"));
-                add_event(QStringLiteral("Could not connect to rigctld at %1:%2")
-                              .arg(QString::fromStdString(host))
-                              .arg(port));
-            }
-            return;
-        }
-
+#ifdef FECTTY_HAS_HAMLIB
+        else if(backend=="hamlib"){
+            const int model=hamlib_model_->currentData().toInt(),baud=hamlib_baud_->value();
+            auto device=hamlib_device_->text().trimmed().toStdString();
+            if(model<=0||(model!=1&&device.empty())){add_event("Select the exact radio model and serial/USB port first");return;}
 #ifdef _WIN32
-        if (backend == QStringLiteral("omnirig")) {
-            auto candidate = std::make_unique<fectty::OmniRigControl>();
-            if (candidate->connect()) {
-                rig_control_ = std::move(candidate);
-                rig_state_->setText(QStringLiteral("OmniRig connected"));
-                add_event(QStringLiteral("Connected to OmniRig Rig 1; CAT/PTT remains off"));
-            } else {
-                rig_state_->setText(QStringLiteral("Not connected"));
-                add_event(QStringLiteral("Could not connect to OmniRig Rig 1"));
-            }
-            return;
+            if(device.starts_with("COM")||device.starts_with("com"))device=R"(\\.\)"+device;
+#endif
+            factory=[model,device,baud]{return std::make_unique<fectty::HamlibRigControl>(model,device,baud);};
         }
 #endif
-
-        rig_state_->setText(QStringLiteral("Not connected"));
-        add_event(QStringLiteral("Unknown radio-control backend"));
+#ifdef _WIN32
+        else if(backend=="omnirig"){
+            const int slot=omni_number_->currentData().toInt();factory=[slot]{return std::make_unique<fectty::OmniRigControl>(slot);};
+        }
+#endif
+        else {radio_operation_=radio_.disconnect();return;}
+        radio_operation_=radio_.connect(std::move(factory));add_event("Connecting CAT; no PTT or dial write");update_radio_controls();
     }
 
     QWidget* make_modem_page() {
@@ -873,7 +985,7 @@ class MainWindow final : public QMainWindow {
         ptt_tail_->setSuffix(QStringLiteral(" ms"));
         ptt_lead_->setEnabled(false);
         ptt_tail_->setEnabled(false);
-        ptt_lead_->setToolTip(QStringLiteral("CAT/PTT is disabled in this bench build."));
+        ptt_lead_->setToolTip(QStringLiteral("Delay after confirmed PTT ON before modem audio. Only used with armed CAT."));
         ptt_tail_->setToolTip(ptt_lead_->toolTip());
         form->addRow(QStringLiteral("Mode"), mode);
         form->addRow(QStringLiteral("PTT lead"), ptt_lead_);
@@ -975,7 +1087,7 @@ class MainWindow final : public QMainWindow {
         layout->addLayout(controls);
         waterfall_ = new fectty::WaterfallWidget;
         layout->addWidget(waterfall_, 1);
-        auto* hint = new QLabel(QStringLiteral("Left click/drag: RX · Right or Ctrl click/drag: TX · Numeric fields: exact offset"));
+        auto* hint = new QLabel(QStringLiteral("Left: RX · Right/Ctrl: TX · Fields: exact offset"));
         hint->setObjectName(QStringLiteral("helpText")); hint->setWordWrap(true);
         layout->addWidget(hint);
         waterfall_->on_tune = [this](double hz, bool tx) { (tx ? tx_frequency_ : center_frequency_)->setValue(hz); };
@@ -1043,6 +1155,11 @@ class MainWindow final : public QMainWindow {
         if (rig >= 0) rig_backend_->setCurrentIndex(rig);
         rig_host_->setText(QString::fromStdString(settings_.rig_host));
         rig_port_->setValue(settings_.rig_port);
+        const int model=hamlib_model_->findData(settings_.hamlib_model);if(model>=0)hamlib_model_->setCurrentIndex(model);
+        hamlib_device_->setText(QString::fromStdString(settings_.hamlib_device));hamlib_baud_->setValue(settings_.hamlib_baud);
+        omni_number_->setCurrentIndex(settings_.omnirig_number-1);tx_limit_->setValue(settings_.tx_limit_seconds);
+        ptt_source_->setCurrentIndex(ptt_source_->findData(QString::fromStdString(settings_.ptt_source)));
+        ptt_armed_->setChecked(false);
         const auto restore_named = [this](QComboBox* combo, const std::string& id, const std::string& name) {
             if (id == "none") { combo->setCurrentIndex(combo->findData(QStringLiteral("none"))); return; }
             // OS/PortAudio indices can move when endpoints change. Never use
@@ -1084,6 +1201,9 @@ class MainWindow final : public QMainWindow {
         copy.rig_backend = rig_backend_->currentData().toString().toStdString();
         copy.rig_host = rig_host_->text().toStdString();
         copy.rig_port = static_cast<uint16_t>(rig_port_->value());
+        copy.hamlib_model=hamlib_model_->currentData().toInt();copy.hamlib_device=hamlib_device_->text().toStdString();
+        copy.hamlib_baud=hamlib_baud_->value();copy.omnirig_number=omni_number_->currentData().toInt();
+        copy.tx_limit_seconds=tx_limit_->value();copy.ptt_source=ptt_source_->currentData().toString().toStdString();
         copy.audio_input = rx_device_->currentData().toString().toStdString();
         copy.audio_output = tx_device_->currentData().toString().toStdString();
         copy.audio_input_name = rx_device_->currentText().toStdString();
@@ -1100,7 +1220,43 @@ class MainWindow final : public QMainWindow {
         }
     }
 
+    bool bench_radio_requested_=false,bench_arm_requested_=false;
+    uint64_t bench_apply_frequency_=0;
+    fectty::RigMode bench_apply_mode_=fectty::RigMode::USB;
+
+    void begin_bench_audio(const QString& message,std::chrono::steady_clock::time_point deadline){
+        if(radio_operation_.valid()){
+            if(std::chrono::steady_clock::now()>deadline){add_event("CAT preparation timed out");QApplication::exit(2);return;}
+            QTimer::singleShot(50,this,[this,message,deadline]{begin_bench_audio(message,deadline);});return;
+        }
+        if(bench_radio_requested_&&(!radio_.status().rig.connected||radio_.status().fault)){QApplication::exit(2);return;}
+        if(bench_apply_frequency_){
+            radio_operation_=radio_.apply(bench_apply_frequency_,bench_apply_mode_);bench_apply_frequency_=0;
+            QTimer::singleShot(50,this,[this,message,deadline]{begin_bench_audio(message,deadline);});return;
+        }
+        ptt_armed_->setChecked(bench_arm_requested_);
+        if(!start_session()){QApplication::exit(2);return;}
+        if(!message.isEmpty())QTimer::singleShot(1500,this,[this,message]{transmit_->setPlainText(message);send_message();});
+    }
+
 public:
+    void show_radio_page(){findChild<QTabWidget*>()->setCurrentIndex(1);}
+    bool configure_bench_radio(const fectty::AppSettings& r,bool arm,uint64_t frequency,fectty::RigMode mode){
+        const int backend=rig_backend_->findData(QString::fromStdString(r.rig_backend));
+        if(backend<0||(arm&&r.rig_backend=="none"))return false;
+        rig_backend_->setCurrentIndex(backend);rig_host_->setText(QString::fromStdString(r.rig_host));rig_port_->setValue(r.rig_port);
+        const int model=hamlib_model_->findData(r.hamlib_model);
+        if(r.rig_backend=="hamlib"&&model<0)return false;
+        if(model>=0)hamlib_model_->setCurrentIndex(model);
+        hamlib_device_->setText(QString::fromStdString(r.hamlib_device));hamlib_baud_->setValue(r.hamlib_baud);
+        omni_number_->setCurrentIndex(r.omnirig_number-1);tx_limit_->setValue(r.tx_limit_seconds);
+        ptt_source_->setCurrentIndex(ptt_source_->findData(QString::fromStdString(r.ptt_source)));
+        ptt_lead_->setValue(r.ptt_lead_ms);ptt_tail_->setValue(r.ptt_tail_ms);
+        bench_radio_requested_=r.rig_backend!="none";bench_arm_requested_=arm;
+        bench_apply_frequency_=frequency;bench_apply_mode_=mode;
+        if(bench_radio_requested_)connect_radio_backend();
+        return true;
+    }
     bool transmission_succeeded() const { return tx_success_.load(); }
     bool save_snapshot(const QString& path) { return grab().save(path); }
     void retune_rx(double hz) { center_frequency_->setValue(hz); }
@@ -1133,16 +1289,7 @@ public:
         if (rx >= 0) rx_device_->setCurrentIndex(rx);
         if (tx >= 0) tx_device_->setCurrentIndex(tx);
         QTimer::singleShot(750, this, [this, message] {
-            if (!start_session()) {
-                QTimer::singleShot(0, this, [] { QApplication::exit(2); });
-                return;
-            }
-            if (!message.isEmpty()) {
-                QTimer::singleShot(1500, this, [this, message] {
-                    transmit_->setPlainText(message);
-                    send_message();
-                });
-            }
+            begin_bench_audio(message,std::chrono::steady_clock::now()+std::chrono::seconds(15));
         });
     }
 
@@ -1153,6 +1300,12 @@ public:
         report[QStringLiteral("received_text")] = received_->toPlainText();
         report[QStringLiteral("draft_text")] = transmit_->toPlainText();
         report[QStringLiteral("tx_success")] = tx_success_.load();
+        report["tx_generated_samples"]=static_cast<qint64>(tx_generated_samples_.load());
+        const auto radio=radio_.status();
+        report["rig_backend"]=rig_backend_->currentData().toString();report["cat_armed"]=ptt_armed_->isChecked();
+        report["cat_connected"]=radio.rig.connected;report["cat_ptt_owned"]=radio.ptt_owned;
+        report["cat_transmitting"]=radio.rig.transmitting;report["cat_fault"]=radio.fault;
+        report["cat_message"]=QString::fromStdString(radio.message);
         report[QStringLiteral("tx_error")] = QString::fromStdString(tx_error_);
         report[QStringLiteral("frames_ok")] = static_cast<qint64>(rx_stats_.frames_ok);
         report[QStringLiteral("crc_failures")] = static_cast<qint64>(rx_stats_.crc_failures);
@@ -1198,7 +1351,8 @@ public:
         rig_state_->setText(QStringLiteral("NullRig"));
         migrate_legacy_settings();
         load_settings();
-        statusBar()->showMessage(QStringLiteral("CAT/PTT disabled — NullRig bench mode"));
+        update_radio_controls();
+        statusBar()->showMessage(QStringLiteral("PTT disarmed — connect and arm explicitly for radio TX"));
     }
 
     ~MainWindow() override {
@@ -1221,6 +1375,7 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     const auto arguments = app.arguments();
     bool auto_start = false;
+    bool show_radio=false;
     QString auto_input;
     QString auto_output;
     QString auto_message;
@@ -1233,10 +1388,16 @@ int main(int argc, char** argv) {
     double retune_rx_center = 0;
     int retune_after = 3;
     int bench_volume = -1;
+    fectty::AppSettings bench_radio;
+    bool cat_arm=false,radio_arguments=false;
+    uint64_t cat_frequency=0;
+    fectty::RigMode cat_mode=fectty::RigMode::USB;
     for (qsizetype i = 1; i < arguments.size(); ++i) {
         const auto argument = arguments[i];
         if (argument == "--autostart") {
             auto_start = true;
+        } else if(argument=="--show-radio"){
+            show_radio=true;
         } else if (argument == "--rx" && i + 1 < arguments.size()) {
             auto_input = arguments[++i];
         } else if (argument == "--tx" && i + 1 < arguments.size()) {
@@ -1280,6 +1441,41 @@ int main(int argc, char** argv) {
         } else if (argument == "--snapshot" && i + 1 < arguments.size()) {
             snapshot_path = arguments[++i];
             if (snapshot_path.isEmpty()) { std::cerr << "Snapshot path is empty\n"; return 2; }
+        } else if(argument=="--cat-ptt"){
+            cat_arm=true;radio_arguments=true;
+        } else if((argument=="--rig-backend"||argument=="--rig-host"||argument=="--rig-device"||argument=="--ptt-source")&&i+1<arguments.size()){
+            radio_arguments=true;const auto value=arguments[++i].toStdString();
+            if(argument=="--rig-backend")bench_radio.rig_backend=value;
+            else if(argument=="--rig-host")bench_radio.rig_host=value;
+            else if(argument=="--rig-device")bench_radio.hamlib_device=value;
+            else {if(value!="on"&&value!="mic"&&value!="data"){std::cerr<<"Invalid PTT source\n";return 2;}bench_radio.ptt_source=value;}
+        } else if((argument=="--rig-port"||argument=="--rig-model"||argument=="--rig-baud"||argument=="--omnirig-number"||
+                   argument=="--ptt-lead-ms"||argument=="--ptt-tail-ms"||argument=="--tx-limit-seconds")&&i+1<arguments.size()){
+            radio_arguments=true;int value=0;
+            if(!fectty::parse_number(arguments[++i].toStdString(),value)){std::cerr<<"Invalid CAT number\n";return 2;}
+            int low=0,high=2000;
+            if(argument=="--rig-port"){low=1;high=65535;}
+            if(argument=="--rig-model"){low=1;high=999999;}
+            if(argument=="--rig-baud"){low=300;high=115200;}
+            if(argument=="--omnirig-number"){low=1;high=2;}
+            if(argument=="--tx-limit-seconds"){low=1;high=600;}
+            if(value<low||value>high){std::cerr<<"CAT value out of range\n";return 2;}
+            if(argument=="--rig-port")bench_radio.rig_port=static_cast<uint16_t>(value);
+            else if(argument=="--rig-model")bench_radio.hamlib_model=value;
+            else if(argument=="--rig-baud")bench_radio.hamlib_baud=value;
+            else if(argument=="--omnirig-number")bench_radio.omnirig_number=value;
+            else if(argument=="--ptt-lead-ms")bench_radio.ptt_lead_ms=value;
+            else if(argument=="--ptt-tail-ms")bench_radio.ptt_tail_ms=value;
+            else bench_radio.tx_limit_seconds=value;
+        } else if(argument=="--cat-apply-hz"&&i+1<arguments.size()){
+            radio_arguments=true;
+            if(!fectty::parse_number(arguments[++i].toStdString(),cat_frequency)||cat_frequency==0||cat_frequency>2147483647ULL)return 2;
+        } else if(argument=="--cat-mode"&&i+1<arguments.size()){
+            radio_arguments=true;const auto value=arguments[++i];
+            if(value=="USB")cat_mode=fectty::RigMode::USB;else if(value=="LSB")cat_mode=fectty::RigMode::LSB;
+            else if(value=="PKTUSB")cat_mode=fectty::RigMode::DataUSB;else if(value=="PKTLSB")cat_mode=fectty::RigMode::DataLSB;else return 2;
+        } else if(argument=="--version"){
+            std::cout<<FECTTY_PROJECT_VERSION<<'\n';return 0;
         } else if (argument == "--help") {
             std::cout << "FEC-RTTY GUI\n"
                       << "  --autostart             start the selected live audio session\n"
@@ -1295,13 +1491,24 @@ int main(int argc, char** argv) {
                       << "  --run-seconds N         close after N seconds (bench testing)\n"
                       << "  --report PATH           save exact displayed RX and counters as JSON\n"
                       << "  --snapshot PATH         save the GUI image at end of bench run\n"
-                      << "  --send TEXT             transmit TEXT after starting\n";
+                      << "  --send TEXT             transmit TEXT after starting\n"
+                      << "  --rig-backend NAME      none, hamlib, rigctld or omnirig (bench default none)\n"
+                      << "  --rig-model N           Hamlib model ID; --rig-device COMn; --rig-baud N\n"
+                      << "  --rig-host IP           rigctld numeric address; --rig-port N (4532)\n"
+                      << "  --omnirig-number N      OmniRig slot 1 or 2\n"
+                      << "  --cat-ptt               explicitly arm CAT PTT for this run\n"
+                      << "  --cat-apply-hz N        explicitly set RF dial + --cat-mode USB|LSB|PKTUSB|PKTLSB\n"
+                      << "  --ptt-source NAME       on (radio default), mic or data\n"
+                      << "  --ptt-lead-ms N          lead delay; --ptt-tail-ms N (0 to 2000)\n"
+                      << "  --tx-limit-seconds N    maximum keyed time (1 to 600, default 120)\n";
             return 0;
         } else {
             std::cerr << "Unknown or incomplete argument: " << argument.toStdString() << '\n';
             return 2;
         }
     }
+    if(radio_arguments&&!auto_start){std::cerr<<"CAT CLI options require --autostart or --send\n";return 2;}
+    if((cat_arm||cat_frequency)&&bench_radio.rig_backend=="none"){std::cerr<<"CAT action requires a real backend\n";return 2;}
     if (quit_after_send && auto_message.isEmpty()) {
         std::cerr << "--quit-after-send requires --send TEXT\n";
         return 2;
@@ -1395,9 +1602,13 @@ int main(int argc, char** argv) {
         "QScrollBar::handle:horizontal:hover { background: #4a627a; }"
         "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"));
     MainWindow window(auto_start || run_seconds > 0 || !report_path.isEmpty() || !snapshot_path.isEmpty() || bench_center > 0 || bench_volume >= 0 || bench_rx_center > 0 || bench_tx_center > 0 || retune_rx_center > 0);
+    if(auto_start&&!window.configure_bench_radio(bench_radio,cat_arm,cat_frequency,cat_mode)){
+        std::cerr<<"Invalid or unavailable radio backend/model\n";return 2;
+    }
     window.set_quit_after_send(quit_after_send);
     window.set_bench_parameters(bench_center, bench_volume, bench_rx_center, bench_tx_center);
     window.show();
+    if(show_radio)window.show_radio_page();
     if (auto_start) {
         QTimer::singleShot(0, &window, [&window, auto_input, auto_output, auto_message] {
             window.prepare_bench(auto_input, auto_output, auto_message);
