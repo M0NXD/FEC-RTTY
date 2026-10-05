@@ -1,0 +1,31 @@
+RX listening on input 0 for 75 seconds
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+RX: 01234567
+Captured samples: 3598336 peak: 0.5 rms: 0.281968
+Frames valid: 20
+CRC failures: 0
+Sequence gaps: 0
+Acquisitions: 1
+Reacquisitions: 0
+Frequency offset: 0 Hz
+Receive state: LOST
+Samples buffered: 24960
+Dropped samples: 0

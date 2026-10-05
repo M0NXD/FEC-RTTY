@@ -1,0 +1,728 @@
+ARCHIVED PLANNING BRIEF — v0.33, October 2026
+
+This is the original development input for an earlier prototype. Imperative
+wording, proposed features and package paths below are historical requirements,
+not current operator instructions or claims that those features are implemented.
+Read the repository's current README.md, docs/BUILDING.md and
+docs/DEVELOPMENT_PLAN.md for the present application and roadmap. Runtime ZIPs
+mentioned here are not included in the public source checkout.
+
+--- Original brief ---
+
+Continue development of the FEC-RTTY amateur-radio digital text mode from the current v0.33 Windows bench-tested state. Do not restart the project or redesign the protocol unless a real defect forces a change. Preserve compatibility with the existing modem implementation and treat the current successful Windows VB-Audio test as the new baseline.
+
+## Current verified baseline
+
+The project currently has:
+
+- C++20 / CMake build.
+- Working `build.bat` on Windows.
+- Continuous-phase 4-FSK at 50 baud.
+- 48 kHz audio.
+- Tones centred around 1500 Hz.
+- Rate-1/2 K=7 convolutional FEC using 171/133 octal.
+- Soft-decision Viterbi decoding.
+- CRC-16/CCITT-FALSE.
+- Short deterministic interleaver.
+- Acquisition preamble and sync word.
+- UTF-8 payload framing.
+- Sequence numbering.
+- WAV record/replay support.
+- Spectrum and level metering.
+- Rig abstractions for NullRig, Hamlib, NET rigctl and OmniRig.
+- Optional PortAudio and Qt scaffolding.
+- Windows WinMM live bench utility: `fectty-live.exe`.
+- CAT/PTT intentionally disabled in the current Windows audio bench tool.
+
+The Windows build is verified:
+
+- `build.bat` exits 0.
+- CMake build succeeds.
+- CTest passes 1/1.
+- Simulator passes with 3 valid frames, 0 CRC failures and 0 sequence gaps.
+- Benchmark passes all currently tested noise levels with 7 frames and 0 CRC failures.
+
+VB-Audio devices seen during testing were:
+
+- Input 0: `CABLE Output`
+- Output 1: `CABLE Input`
+
+Device indices are not stable, so always support and recommend:
+
+`fectty-live.exe --list`
+
+before selecting devices.
+
+The real live-audio test that passed was:
+
+Receiver:
+
+`fectty-live.exe --receive --input 0 --seconds 15`
+
+Transmitter:
+
+`fectty-live.exe --send "HELLO" --output 1 --gain 0.5`
+
+Verified result:
+
+- TX payload: 5 bytes.
+- TX generated 114240 modem samples.
+- Playback completed.
+- RX decoded exactly: `HELLO`
+- Frames valid: 1
+- CRC failures: 0
+- Acquisitions: 1
+- Receiver exit code: 0
+- Captured peak: 0.903809
+- Captured RMS: 0.157901
+
+This was real 48 kHz modem audio travelling through the VB-Audio virtual cable. It was not a text shortcut.
+
+The current Windows package is:
+
+`releases/fectty-v0.33-win-bench.zip`
+
+Treat that as the v0.33 reference build.
+
+## Primary objective
+
+Turn the current one-frame live Windows success into a robust continuous keyboard-to-keyboard modem capable of sustained multi-frame traffic and ready for first real-radio testing.
+
+The immediate priority is modem receive reliability, not GUI appearance.
+
+Do not spend substantial time polishing Qt until the live modem can sustain long messages reliably.
+
+## Phase 1 — v0.34: continuous multi-frame live receive
+
+The biggest current limitation is that the short one-frame live test succeeds but long/multi-frame live messages still need stronger acquisition and receive-state handling.
+
+Implement a real stateful live receive pipeline.
+
+The receiver should have clear states such as:
+
+SEARCH / ACQUIRE  
+SYNC  
+LOCKED  
+FRAME  
+TRACK  
+LOST / REACQUIRE
+
+Do not require a full acquisition preamble before every individual frame in one continuous transmission.
+
+Once acquisition succeeds, stay locked and decode consecutive frames until there is genuine evidence that lock has been lost.
+
+Implement:
+
+- Back-to-back variable-length frame decoding.
+- Continuous sequence-number tracking.
+- Inter-frame gap tolerance.
+- CRC-failed-frame handling without immediately destroying the whole session.
+- Recovery after a corrupt frame.
+- Search for the next valid sync/frame boundary while remaining in the current transmission.
+- A defined lock-loss threshold.
+- Reacquisition only when needed.
+- Correct accumulation of arbitrary WinMM callback/block sizes.
+- No assumption that frame boundaries align with audio block boundaries.
+- No assumption that acquisition starts at sample zero.
+- Correct handling when a sync word is split across multiple audio buffers.
+- Correct handling when a frame body is split across buffers.
+
+Maintain diagnostics for:
+
+- frames valid,
+- CRC failures,
+- sequence gaps,
+- acquisition count,
+- reacquisition count,
+- current frequency offset,
+- current receive state,
+- samples buffered,
+- dropped/overrun audio if any.
+
+### v0.34 acceptance test
+
+Use actual VB-Audio audio, not the simulator alone.
+
+Send a message long enough to force at least 10 protocol frames.
+
+Use something similar to:
+
+`THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 0123456789 CQ CQ CQ DE G0ABC G0ABC K THIS IS A MULTI FRAME LIVE MODEM TEST 1234567890`
+
+The receiver must reconstruct the complete text exactly.
+
+Target result:
+
+- at least 10 valid frames,
+- 0 CRC failures in the clean virtual-cable test,
+- 0 sequence gaps,
+- ideally 1 initial acquisition for the whole transmission,
+- exact decoded UTF-8 payload,
+- receiver process exits 0.
+
+Also test:
+
+- 20 frames,
+- 50 frames,
+- 100+ bytes,
+- 500+ bytes.
+
+Do not call v0.34 complete until long live traffic works through VB-Audio.
+
+## Phase 2 — v0.35: live timing recovery and sample-clock mismatch
+
+The current receiver needs stronger protection against independent sound-card clocks.
+
+Implement continuous timing tracking rather than relying only on initial symbol timing.
+
+The design may use:
+
+- early/late timing error,
+- energy comparison around symbol centres,
+- fractional sample interpolation,
+- a small resampler,
+- or another simple stable tracking loop.
+
+Do not overcomplicate this into a huge DSP framework.
+
+Requirements:
+
+- track slow clock drift during a transmission,
+- support small positive and negative ppm mismatch,
+- avoid cycle slips,
+- preserve timing across frame boundaries,
+- reset or widen the loop only when lock is lost.
+
+Add deterministic tests with injected sample-rate error.
+
+Start with approximately:
+
+- ±10 ppm,
+- ±25 ppm,
+- ±50 ppm,
+- ±100 ppm.
+
+Report exactly which levels pass.
+
+Do not claim ppm capability beyond what the tests prove.
+
+## Phase 3 — v0.36: continuous AFC / carrier tracking
+
+Initial acquisition AFC is not enough for long real-radio transmissions.
+
+Add frequency tracking while locked.
+
+Requirements:
+
+- estimate residual frequency offset during data,
+- update the demodulator gradually,
+- avoid large AFC jumps caused by noise,
+- preserve lock across frames,
+- expose estimated offset in diagnostics.
+
+Test synthetic frequency offsets such as:
+
+- ±10 Hz,
+- ±25 Hz,
+- ±50 Hz,
+- ±75 Hz,
+- ±100 Hz,
+
+and combinations of frequency offset plus sample-clock mismatch.
+
+Keep the original acquisition range broad enough to find the signal, then use a narrower tracking loop while locked.
+
+## Phase 4 — v0.37: controlled impairment testing
+
+Extend the channel/test infrastructure so modem robustness is measurable instead of anecdotal.
+
+Add deterministic impairment controls for:
+
+- AWGN,
+- gain reduction,
+- clipping,
+- short dropouts,
+- impulsive noise,
+- frequency offset,
+- sample-rate mismatch,
+- DC offset if useful,
+- mild band limiting if useful.
+
+Add CSV benchmark output.
+
+Measure at minimum:
+
+- frames sent,
+- frames valid,
+- frame error rate,
+- CRC failures,
+- sequence gaps,
+- decoded-byte count,
+- text exact-match result,
+- acquisition count,
+- reacquisition count.
+
+If practical, move toward calibrated Es/N0 or Eb/N0 testing rather than arbitrary noise standard deviation.
+
+Clearly distinguish calibrated figures from uncalibrated noise tests.
+
+## Phase 5 — v0.38: WAV capture/replay integrated with live RX
+
+Make debugging live failures easy.
+
+The live receiver should optionally record exactly what it heard to a WAV file.
+
+Add CLI options along the lines of:
+
+`--record-rx file.wav`
+
+and offline replay such as:
+
+`--decode-wav file.wav`
+
+The offline replay path must use the same modem receiver core as the live path.
+
+Do not maintain separate decoding logic for WAV and live audio.
+
+Also allow TX waveform export:
+
+`--write-tx-wav file.wav`
+
+This is important for future RF debugging.
+
+If an on-air decode fails later, the received audio should be replayable repeatedly while improving DSP.
+
+## Phase 6 — v0.39: audio-level and clipping safeguards
+
+Build on the existing peak/RMS diagnostics.
+
+For live audio expose:
+
+- peak level,
+- RMS level,
+- dBFS,
+- clipping count,
+- low-signal warning,
+- excessive-level warning.
+
+Do not implement aggressive AGC inside the modem yet unless tests prove it is needed.
+
+Prefer informing the operator about bad levels rather than silently altering waveform dynamics.
+
+For TX, protect against accidental clipping.
+
+The v0.33 test at gain 0.5 produced a captured peak around 0.904 and should be considered a useful clean baseline.
+
+## Phase 7 — v0.40: long-session and dropout recovery
+
+Test transmissions lasting minutes, not seconds.
+
+Requirements:
+
+- no unbounded buffer growth,
+- no memory leaks,
+- no steadily increasing latency,
+- no thread deadlocks,
+- no dependency on one exact audio buffer size.
+
+Test intentional disturbances during a long transmission:
+
+- remove audio for 100 ms,
+- 250 ms,
+- 500 ms,
+- introduce a corrupted frame,
+- interrupt signal entirely and resume with a new acquisition preamble.
+
+The modem should recover cleanly when possible.
+
+After true loss of lock, it should return to SEARCH and reacquire the next valid transmission.
+
+## Phase 8 — v0.41: TX session engine and keyboard behaviour
+
+Turn the transmitter from a single-command waveform generator into a realistic keyboard-to-keyboard session engine.
+
+Implement a TX queue.
+
+Requirements:
+
+- user text can arrive gradually,
+- chunk into protocol payload frames,
+- sequence numbers advance correctly,
+- UTF-8 boundaries are handled safely,
+- acquisition is emitted once at start of a transmission,
+- frames are emitted continuously,
+- short typing pauses should not necessarily drop TX immediately,
+- idle-release timer controls end of transmission.
+
+Use the already planned defaults unless there is a good reason to change them:
+
+- PTT lead around 150 ms,
+- tail around 100 ms,
+- idle release around 750 ms.
+
+For bench mode CAT/PTT still remains disabled.
+
+The state machine should be usable later by real CAT/PTT without changing modem framing.
+
+## Phase 9 — v0.42: CAT/PTT hardening
+
+Once the modem itself is stable, validate rig control.
+
+Keep rig interaction outside audio callbacks.
+
+Support:
+
+- NullRig,
+- NET rigctl / rigctld,
+- direct Hamlib when enabled,
+- OmniRig on Windows.
+
+Harden:
+
+- connection timeouts,
+- reconnect behaviour,
+- failed command handling,
+- PTT-off safety,
+- TX watchdog,
+- application shutdown while transmitting,
+- rig disconnect while transmitting.
+
+The most important safety rule:
+
+If anything goes wrong during TX, the software must make a best effort to release PTT.
+
+Add a maximum TX watchdog.
+
+Do not allow CAT calls or COM calls to block real-time DSP/audio threads.
+
+## Phase 10 — v0.43: real-radio bench preparation
+
+Prepare for two-computer or two-radio testing.
+
+Add clear operator configuration for:
+
+- input audio device,
+- output audio device,
+- sample rate,
+- TX gain,
+- centre frequency,
+- rig backend,
+- rig address/port,
+- PTT mode,
+- callsign.
+
+Provide a radio-test checklist in the README.
+
+Important real-radio considerations:
+
+- use SSB/data mode with processing/compression disabled where possible,
+- avoid ALC overdrive,
+- keep TX audio below clipping,
+- note receive filtering,
+- note radio AGC behaviour,
+- note exact rig/audio interface used,
+- record RX WAV during early tests.
+
+Do not claim RF robustness from VB-Audio tests.
+
+## Phase 11 — first two-machine interoperability test
+
+Before or alongside RF testing, run the software on two separate PCs.
+
+This is important because a single-machine VB-Audio test shares one system clock environment more than two independent stations would.
+
+Test:
+
+PC A → audio connection → PC B
+
+and then:
+
+PC B → PC A
+
+Use separate hardware or appropriate virtual/network routing.
+
+Verify long multi-frame messages.
+
+Record:
+
+- audio devices,
+- actual sample rates,
+- estimated clock error,
+- estimated frequency offset,
+- frame counts,
+- CRC failures,
+- sequence gaps,
+- acquisitions/reacquisitions.
+
+## Phase 12 — first real SSB radio test
+
+Only after the multi-frame live modem is reliable.
+
+Start with a controlled local radio link.
+
+Prefer strong signals and low RF difficulty initially.
+
+Recommended progression:
+
+1. Two radios with direct or very strong local RF path.
+2. Clean frequency alignment.
+3. Processing/compression disabled.
+4. Moderate audio drive.
+5. Short HELLO-style test.
+6. Multi-frame 100+ byte message.
+7. Repeated transmissions.
+8. Deliberately introduce small tuning errors.
+9. Test lower signal levels.
+10. Capture WAV for every failure worth investigating.
+
+Do not modify the protocol just because one RF test fails.
+
+First determine whether the failure is:
+
+- audio level,
+- clipping,
+- SSB filtering,
+- tuning offset,
+- AFC,
+- symbol timing,
+- sound-card clock mismatch,
+- frame synchronization,
+- or FEC performance.
+
+## Phase 13 — Qt GUI integration
+
+Only after the modem core has demonstrated stable live multi-frame operation.
+
+Convert the current Qt scaffold into a usable operator interface.
+
+Include:
+
+- RX text pane,
+- TX typing pane,
+- TX/RX state,
+- connect/disconnect,
+- rig status,
+- PTT status,
+- audio input/output selectors,
+- level meter,
+- clipping warning,
+- frequency offset display,
+- frame/CRC/sequence statistics,
+- waterfall/spectrum,
+- callsign/configuration,
+- macro buttons,
+- QSO logging.
+
+The GUI must call the same modem core as the CLI.
+
+Do not fork protocol or DSP logic into GUI-specific implementations.
+
+The CLI tools should remain available because they are valuable for debugging.
+
+## Phase 14 — waterfall and tuning display
+
+Use the existing spectrum engine.
+
+Implement a practical waterfall around the FEC-RTTY passband.
+
+Show:
+
+- expected four FSK tones,
+- centre frequency,
+- current AFC estimate,
+- acquisition/lock state.
+
+Keep the visualization out of the real-time audio callback.
+
+GUI rendering must never block DSP.
+
+## Phase 15 — protocol interoperability freeze
+
+Before calling the protocol stable, produce an interoperability specification.
+
+Document exactly:
+
+- audio sample rate assumptions,
+- symbol rate,
+- tone frequencies,
+- tone-to-bit mapping,
+- phase continuity requirements,
+- acquisition sequence,
+- sync word,
+- bit ordering,
+- byte ordering,
+- frame header fields,
+- payload limits,
+- CRC algorithm and byte order,
+- convolutional encoder details,
+- tail bits,
+- Viterbi conventions,
+- interleaver algorithm,
+- sequence behaviour,
+- UTF-8 handling,
+- TX timing expectations.
+
+Create fixed known-answer test vectors.
+
+Include:
+
+- payload bytes,
+- framed bytes,
+- CRC,
+- raw bits,
+- FEC-coded bits,
+- interleaved bits,
+- sync bits,
+- expected symbol sequence.
+
+A second independent implementation should eventually be able to reproduce these.
+
+## Phase 16 — protocol/version strategy
+
+The protocol is still experimental.
+
+Do not casually change over-the-air behaviour once RF tests begin.
+
+If a protocol-breaking change becomes necessary, bump the protocol version.
+
+Use the existing version bits intentionally.
+
+Document compatibility behaviour.
+
+Avoid feature creep before the basic mode is proven.
+
+## Phase 17 — error reporting and diagnostics
+
+Every live failure should produce useful information.
+
+Improve diagnostic output so it can report:
+
+- searching,
+- acquisition candidate,
+- acquired,
+- sync found,
+- frame decoded,
+- CRC failure,
+- sequence gap,
+- timing correction,
+- AFC correction,
+- lock lost,
+- reacquired,
+- audio overrun,
+- clipping,
+- TX completed.
+
+Allow a verbose/debug mode.
+
+Avoid excessive console work in real-time callbacks.
+
+Queue diagnostics to a worker/logging thread where necessary.
+
+## Phase 18 — automated Windows regression script
+
+Add an automated Windows regression runner.
+
+For example:
+
+`test-windows.bat`
+
+It should:
+
+- run build,
+- run CTest,
+- run simulator,
+- run benchmark,
+- run WAV round-trip,
+- run multi-frame modem test,
+- report failure via non-zero exit code.
+
+If feasible, provide a semi-automated VB-Audio test that starts RX and TX processes and verifies the decoded result.
+
+Do not hardcode VB-Audio device indices.
+
+Use device-name matching where practical.
+
+## Phase 19 — build.bat requirements
+
+Keep `build.bat` reliable.
+
+Requirements:
+
+- operate relative to its own script directory,
+- paths with spaces must work,
+- check that CMake exists,
+- fail clearly if compiler configuration fails,
+- propagate build errors with non-zero exit code,
+- default to Release,
+- allow clean rebuild,
+- optional dependencies must not break the basic build,
+- build the live bench tool by default,
+- print the resulting executable paths.
+
+If Visual Studio generator discovery needs special handling, make it robust.
+
+Do not require a developer command prompt if ordinary CMake can locate Visual Studio normally.
+
+## Phase 20 — packaging
+
+Each meaningful milestone should produce a new package.
+
+Include:
+
+- full source,
+- README,
+- build instructions,
+- protocol notes,
+- tested binaries where appropriate,
+- current limitations,
+- exact test results.
+
+Use clear version names such as:
+
+`fectty-v0.34-win-bench.zip`
+
+Do not overwrite the last known-good package.
+
+Keep v0.33 available as a rollback baseline.
+
+## Engineering constraints
+
+Preserve these principles throughout development:
+
+- Audio callbacks must not perform CAT/COM calls.
+- Audio callbacks should avoid dynamic allocation where practical.
+- Do not block the real-time audio path on GUI, filesystem or network work.
+- Keep simulator, WAV, live audio and eventual GUI on the same modem core.
+- Do not create separate “test-only” protocol logic.
+- CRC decides whether a frame is accepted.
+- Never emit corrupted payload text just because FEC produced bytes.
+- Keep radio control optional.
+- Keep dependency-free core build working.
+- Be explicit about what has been simulation-tested versus live-audio-tested versus actual-radio-tested.
+- Never report hardware verification that has not happened.
+- Preserve all existing successful regression tests.
+
+## Immediate next action
+
+Start with v0.34.
+
+Do not begin with Qt work.
+
+First make actual VB-Audio multi-frame traffic reliable.
+
+Build and test until the following passes through the real Windows audio path:
+
+- more than 10 frames,
+- exact decoded text,
+- 0 CRC failures on clean VB-Audio,
+- 0 sequence gaps,
+- one acquisition for one continuous transmission if possible,
+- process exits 0.
+
+Then increase to 500+ bytes.
+
+Once that succeeds, proceed to timing tracking and AFC.
+
+If an implementation problem is discovered, fix it and rerun the relevant tests rather than merely documenting the failure.
+
+At each milestone, preserve a working build and package the source/binaries before moving to the next major change.

@@ -1,0 +1,16 @@
+FEC-RTTY GUI
+  --autostart             start the selected live audio session
+  --rx BACKEND:N          select the RX input (winmm:N or portaudio:N)
+  --tx BACKEND:N          select the TX output (winmm:N or portaudio:N)
+  --quit-after-send       exit with status after an automatic TX
+  --center-hz N           override center frequency for bench run
+  --rx-center-hz N        independent RX audio offset
+  --tx-center-hz N        independent TX audio offset
+  --retune-rx-hz N        retune RX during bench run
+  --retune-after N        retune delay in seconds (default 3)
+  --volume N              override output volume (0 to 100 percent)
+  --run-seconds N         close after N seconds (bench testing)
+  --report PATH           save exact displayed RX and counters as JSON
+  --snapshot PATH         save the GUI image at end of bench run
+  --send TEXT             transmit TEXT after starting
+

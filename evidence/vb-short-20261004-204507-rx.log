@@ -1,0 +1,12 @@
+RX listening on input 0 for 10 seconds
+RX: HELLO
+Captured samples: 608256 peak: 0.249939 rms: 0.0122251
+Frames valid: 1
+CRC failures: 0
+Sequence gaps: 0
+Acquisitions: 1
+Reacquisitions: 0
+Frequency offset: 0 Hz
+Receive state: LOST
+Samples buffered: 24960
+Dropped samples: 0

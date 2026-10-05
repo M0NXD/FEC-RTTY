@@ -1,0 +1,40 @@
+# Generated CMake build trees and compiler output.
+/source/build*/
+
+# Local Qt SDK and deployed GUI runtime copies.
+/third_party/
+/gui-preview/
+/gui-preview-msys/
+/gui-debug/
+/installer/build/
+
+# Release packages and historical snapshots are local only. GitHub carries
+# one canonical source tree; current binaries are attached to its release.
+/releases/
+/releases/*.zip
+/releases/*.exe
+/releases/**/bin/
+/releases/**/gui/
+/releases/**/source/build*/
+/releases/**/source/*.wav
+/releases/**/fectty-live-*.wav
+/releases/**/evidence/**/*.wav
+/releases/**/evidence/**/*.zip
+/releases/**/evidence/**/*.dll
+
+# Generated local test captures and scratch output.
+/*.wav
+/*.adi
+/*.ini
+/source/*.wav
+/source/fectty_test.adi
+/source/fectty_test.ini
+/evidence/**/*.wav
+/evidence/**/*.zip
+/evidence/**/*.dll
+
+# Common local/editor noise.
+.DS_Store
+Thumbs.db
+*.user
+*.suo

@@ -1,0 +1,21 @@
+{
+    "acquisitions": 1,
+    "captured_samples": 645120,
+    "center_hz": 1800.1,
+    "crc_failures": 0,
+    "draft_text": "",
+    "dropped_samples": 0,
+    "event": "RX retuned to 1800.1 Hz; waiting for the next burst",
+    "frames_ok": 2,
+    "link_offsets": false,
+    "processed_samples": 524288,
+    "receive_state": "LOST",
+    "received_text": "B TO A é\n\n",
+    "samples_buffered": 24960,
+    "sequence_gaps": 0,
+    "tx_center_hz": 2100.1,
+    "tx_error": "",
+    "tx_success": false,
+    "waterfall_peak_hz": 1828.125,
+    "waterfall_rows": 255
+}

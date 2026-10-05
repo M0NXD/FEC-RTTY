@@ -1,0 +1,14 @@
+{
+    "acquisitions": 0,
+    "captured_samples": 0,
+    "center_hz": 1500,
+    "crc_failures": 0,
+    "draft_text": "",
+    "dropped_samples": 0,
+    "event": "TX complete; modem audio sent",
+    "frames_ok": 0,
+    "received_text": "",
+    "sequence_gaps": 0,
+    "tx_error": "",
+    "tx_success": true
+}

@@ -1,0 +1,28 @@
+FEC-RTTY - M0NXD
+
+This began as an experiment to build an amateur-radio digital mode in 24 hours.
+It remains experimental: local bench acceptance is not real-radio certification.
+Messages are unencrypted. CAT/PTT remains disabled.
+
+Setup installs for the current Windows user and includes Qt, PortAudio and
+matching compiler runtime DLLs, source, documentation and dependency notices.
+No Qt SDK, compiler, CMake, Python, .NET runtime or separate Visual C++
+redistributable is needed to run this MinGW build.
+Requires Windows 10 1809+ / Windows 11 x64 and a 48 kHz mono-capable audio device.
+
+Qt 6.8.3 is dynamically linked under LGPL-3.0; its LGPL/GPL texts and complete
+Qt Base/SVG sources are included. You may replace compatible Qt DLLs/plugins
+and reverse engineer the application to debug library modifications.
+Read licenses/qt/REPLACING_QT.md for build/replacement instructions.
+No general application source license has been selected.
+
+Use Settings > Apps > Installed apps (or Apps & features) > FEC-RTTY - M0NXD >
+Uninstall. Control Panel > Programs and Features also works.
+Settings, user-created files and shared drivers are preserved.
+
+VB-CABLE is optional and is not bundled or installed by this setup.
+Get it separately from https://vb-audio.com/Cable/ and follow vendor instructions.
+
+The installer is unsigned. Other computers/clean Windows VMs and actual radios
+remain unverified. Keep all runtime/plugin folders intact; do not exchange
+different same-named runtime DLLs between gui and bin.

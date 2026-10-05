@@ -1,0 +1,161 @@
+{
+  "installer": "<project-root>\\releases\\latest-public\\FEC-RTTY-0.45.1-Setup-x64.exe",
+  "sha256": "9571FFF173C92A08A72F72324AD7D87526A0F8905D5B129C42A5ADB0CAC87961",
+  "run_directory": "<project-root>\\installer\\build\\acceptance-20261005-174721-571",
+  "isolated_install": "<project-root>\\installer\\build\\acceptance-20261005-174721-571\\Installed FEC-RTTY é",
+  "tests": [
+    {
+      "check": "Unrelated nonempty installation folder rejected before copying",
+      "passed": true
+    },
+    {
+      "check": "Unrelated existing file preserved",
+      "passed": true
+    },
+    {
+      "check": "Offline install succeeds without elevation or reboot",
+      "passed": true
+    },
+    {
+      "check": "Settings/Control Panel uninstall entry has correct product/version",
+      "passed": true
+    },
+    {
+      "check": "InstallLocation, EstimatedSize and quiet-uninstall metadata exist",
+      "passed": true
+    },
+    {
+      "check": "Payload identity and all 512 installed file hashes",
+      "passed": true
+    },
+    {
+      "check": "Optional virtual-cable driver is not bundled",
+      "passed": true
+    },
+    {
+      "check": "Optional software-OpenGL/D3D runtime is not bundled",
+      "passed": true
+    },
+    {
+      "check": "Complete matching Qt source archives accompany installed libraries",
+      "passed": true
+    },
+    {
+      "check": "Shortcut created: FEC-RTTY - M0NXD.lnk",
+      "passed": true
+    },
+    {
+      "check": "Shortcut points to installed GUI with correct runtime working directory",
+      "passed": true
+    },
+    {
+      "check": "Shortcut created: FEC-RTTY - M0NXD.lnk",
+      "passed": true
+    },
+    {
+      "check": "Shortcut points to installed GUI with correct runtime working directory",
+      "passed": true
+    },
+    {
+      "check": "Start-menu uninstall shortcut exists",
+      "passed": true
+    },
+    {
+      "check": "Installed gui/fectty-gui.exe starts with Windows-only PATH and no Qt environment overrides",
+      "passed": true
+    },
+    {
+      "check": "Installed bin/fectty-live.exe starts with Windows-only PATH and no Qt environment overrides",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-audit-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-gui-text-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Installed regression passes: fectty-waterfall-tests.exe",
+      "passed": true
+    },
+    {
+      "check": "Two simultaneous visible installed GUI windows are responding with correct title",
+      "passed": true
+    },
+    {
+      "check": "Simultaneous visible GUI closes cleanly",
+      "passed": true
+    },
+    {
+      "check": "Simultaneous visible GUI closes cleanly",
+      "passed": true
+    },
+    {
+      "check": "Current WinMM cable indices/names verified before transmission",
+      "passed": true
+    },
+    {
+      "check": "Current PortAudio cable indices/names verified before transmission",
+      "passed": true
+    },
+    {
+      "check": "Installed visible two-direction exact-text audio test: winmm",
+      "passed": true
+    },
+    {
+      "check": "Installed visible two-direction exact-text audio test: portaudio",
+      "passed": true
+    },
+    {
+      "check": "Rerun/repair succeeds with the same stable application identity",
+      "passed": true
+    },
+    {
+      "check": "Payload identity and all 512 installed file hashes",
+      "passed": true
+    },
+    {
+      "check": "Reinstall preserves user-created files",
+      "passed": true
+    },
+    {
+      "check": "Registered Windows uninstaller returns success",
+      "passed": true
+    },
+    {
+      "check": "Windows uninstall registration removed",
+      "passed": true
+    },
+    {
+      "check": "Owned application/runtime files removed",
+      "passed": true
+    },
+    {
+      "check": "Installed Start-menu/desktop shortcuts removed",
+      "passed": true
+    },
+    {
+      "check": "Uninstall preserves user-created files",
+      "passed": true
+    },
+    {
+      "check": "Existing operator settings unchanged through install/test/repair/uninstall",
+      "passed": true
+    },
+    {
+      "check": "Existing VB-Audio devices unchanged",
+      "passed": true
+    }
+  ],
+  "failure": null,
+  "audio_test": true,
+  "settings_before": "82FC0D67A7315FDEE7726850CC5E4338283BD47DD93093E4168FD48C18143264",
+  "registration_after": null,
+  "note": "Host acceptance, not a clean VM or driver installation test. Synthetic user files/test artifacts retained."
+}

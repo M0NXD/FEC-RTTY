@@ -1,0 +1,5 @@
+Visible portaudio direction 0 GUI RX=3412 TX=18008 expected=18 bytes
+direction=0 exact=True tx_exit=0 rx_exit=0 frames=3 crc=0 gaps=0 drops=0 acquisitions=1 center=1500
+Visible portaudio direction 1 GUI RX=3416 TX=11704 expected=11 bytes
+direction=1 exact=True tx_exit=0 rx_exit=0 frames=2 crc=0 gaps=0 drops=0 acquisitions=1 center=1500
+

@@ -1,0 +1,17 @@
+{
+    "acquisitions": 1,
+    "captured_samples": 985088,
+    "center_hz": 1500,
+    "crc_failures": 0,
+    "draft_text": "",
+    "dropped_samples": 0,
+    "event": "Direct WinMM modem session started; NullRig/CAT/PTT disabled",
+    "frames_ok": 3,
+    "processed_samples": 620544,
+    "receive_state": "REACQUIRE",
+    "received_text": "1234567é\n\nA TO B\n",
+    "samples_buffered": 24960,
+    "sequence_gaps": 0,
+    "tx_error": "",
+    "tx_success": false
+}

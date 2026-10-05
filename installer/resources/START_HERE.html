@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FEC-RTTY - M0NXD | Getting started</title>
+<style>
+:root{color-scheme:dark}body{font:1rem/1.65 system-ui,Segoe UI,sans-serif;background:#111923;color:#e7edf5;margin:0}main{max-width:64rem;margin:auto;padding:2.5rem 1.5rem}h1,h2{line-height:1.25}h1{color:#7ed7c3}h2{margin-top:2rem}a{color:#79c8ff}code{background:#26384b;padding:.15rem .35rem;border-radius:.2rem;overflow-wrap:anywhere}.note{border-left:.3rem solid #7ed7c3;background:#172331;padding:1rem 1.3rem}li{margin:.45rem 0}footer{border-top:1px solid #40566d;margin-top:2.5rem;padding-top:1rem;color:#b8c5d4}
+</style></head><body><main>
+<h1>FEC-RTTY - M0NXD</h1>
+<p>A 24-hour digital-mode experiment: a plaintext text modem with FEC, a scalable GUI and real-audio transmit/decode testing. Subsequent development and limitations are recorded in the included documentation. This is an experimental bench build, not a certified radio product.</p>
+<div class="note">Everything needed to run the application is installed together. No developer SDK or separate runtime download is needed. CAT/PTT remains disabled; nothing here enables radio keying.</div>
+<h2>Start the application</h2>
+<p>Open <strong>FEC-RTTY - M0NXD</strong> from the Windows Start menu, or launch <code>gui\fectty-gui.exe</code> in this installation. Keep its DLL and plugin folders intact. The same executable can run twice.</p>
+<h2>Two-window bench test</h2>
+<ol><li>Launch two copies and choose the same audio backend in both.</li><li>With VB-CABLE already installed, select <strong>CABLE Output</strong> for RX and <strong>CABLE Input</strong> for TX.</li><li>Keep <strong>NullRig / bench mode</strong> and start both sessions.</li><li>Use linked 1500 Hz offsets initially. With split tuning, sender TX must match receiver RX.</li><li>Send a short message from one window, check exact decoded text in the other, then test the reverse direction. Send one at a time; the shared cable can carry your own audio too.</li></ol>
+<p>The output-volume slider reduces audio amplitude; it is not a measurement of safe radio drive. Waterfall sensitivity changes brightness only. Stop cancels TX, and cancelled drafts are preserved.</p>
+<h2>Uninstall or repair</h2>
+<p>Use <strong>Windows Settings → Apps → Installed apps</strong> (or <strong>Apps &amp; features</strong>), find <strong>FEC-RTTY - M0NXD</strong> and select <strong>Uninstall</strong>. The same entry appears in <strong>Control Panel → Programs and Features</strong>. Close installed copies first. Rerun setup to repair this installed version.</p>
+<p>Uninstall removes application-owned files and shortcuts. It preserves your settings at <code>%LOCALAPPDATA%\FEC-RTTY\FEC-RTTY\fectty.ini</code>, user-created files and shared audio drivers.</p>
+<h2>Optional VB-CABLE</h2>
+<p>Normal sound-card operation does not need a virtual cable. For two-application bench tests, download <a href="https://vb-audio.com/Cable/">VB-CABLE separately from its vendor</a> and follow its instructions, license and administrator/restart workflow. FEC-RTTY does not bundle, install, upgrade or remove shared drivers.</p>
+<h2>Complete offline documentation</h2>
+<ul><li><a href="docs/PROJECT_GUIDE.html">Complete operator/developer guide</a></li><li><a href="docs/PROTOCOL.html">Full protocol specification</a></li><li><a href="docs/INSTALLER.html">Installer, prerequisites and rebuilding</a></li><li><a href="docs/DEVELOPMENT_PLAN.html">Development and verification plan</a></li><li><a href="evidence/BUG_FIXES_20261004_R11.html">Recorded modem acceptance and limitations</a></li><li><a href="licenses/THIRD_PARTY_NOTICES.html">Dependency notices and source references</a></li></ul>
+<p>This page is generated for an installation, not for launching from a GitHub source checkout. Offline documents are snapshots; archived pages describe earlier milestones. Use this page's installed paths for launching. Application source, bench tools, notices and the file/hash manifest are also installed.</p>
+<h2>Qt library rights and source</h2><p>Qt 6.8.3 is dynamically linked under LGPL-3.0. LGPL/GPL texts and complete Qt Base/SVG sources are included in <code>licenses/qt/</code>. You may replace compatible libraries and reverse engineer the application to debug library modifications. Read <a href="licenses/qt/REPLACING_QT.html">Qt build/replacement instructions</a>. No general application source license has been selected.</p>
+<footer>Unsigned experimental Windows package. No message encryption. Independent radio/clock/device tests and the RX stop/backlog risk remain outstanding. <a href="https://github.com/M0NXD/FEC-RTTY/releases/latest">Official latest downloads</a>.</footer>
+</main></body></html>

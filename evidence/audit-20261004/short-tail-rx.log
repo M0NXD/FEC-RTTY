@@ -1,0 +1,15 @@
+RX listening on input 0 for 12 seconds
+RX: B TO A Ã
+RX: ©
+
+
+Captured samples: 823296 peak: 0.25 rms: 0.0893921
+Frames valid: 2
+CRC failures: 0
+Sequence gaps: 0
+Acquisitions: 1
+Reacquisitions: 0
+Frequency offset: 0 Hz
+Receive state: LOST
+Samples buffered: 24960
+Dropped samples: 0
