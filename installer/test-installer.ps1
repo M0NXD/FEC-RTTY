@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $project = Split-Path -Parent $PSScriptRoot
 . (Join-Path $project 'tools/public-paths.ps1')
-if (-not $SetupExe) { $SetupExe = Join-Path $project 'releases/v0.46.0-public/FEC-RTTY-0.46.0-Setup-x64.exe' }
+if (-not $SetupExe) { $SetupExe = Join-Path $project 'releases/v0.46.1-public/FEC-RTTY-0.46.1-Setup-x64.exe' }
 $SetupExe = (Resolve-Path $SetupExe).Path
 $registryPath = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\FEC-RTTY-M0NXD_is1'
 function Read-Installation {
@@ -111,7 +111,7 @@ try {
     $installed = Run-Program $SetupExe $arguments 'install' 120
     Check ($installed.exit -eq 0) 'Offline install succeeds without elevation or reboot'
     $registration = Read-Installation
-    Check ($null -ne $registration -and $registration.name -eq 'FEC-RTTY - M0NXD' -and $registration.version -eq '0.46.0') 'Settings/Control Panel uninstall entry has correct product/version'
+    Check ($null -ne $registration -and $registration.name -eq 'FEC-RTTY - M0NXD' -and $registration.version -eq '0.46.1') 'Settings/Control Panel uninstall entry has correct product/version'
     Check ($registration.location.TrimEnd('\') -eq $installDir.TrimEnd('\') -and $registration.size_kib -gt 0 -and $registration.quiet) 'InstallLocation, EstimatedSize and quiet-uninstall metadata exist'
     Check-Manifest
     Check (-not (Test-Path (Join-Path $installDir 'extras/VBCABLE_Driver_Pack45.zip'))) 'Optional virtual-cable driver is not bundled'

@@ -1,4 +1,4 @@
-# CAT radio control (0.46.0)
+# CAT radio control (0.46.1)
 
 FEC-RTTY began as a 24-hour digital-mode experiment. CAT integration changes
 neither the single fixed modem waveform nor its unencrypted messages.
@@ -17,6 +17,11 @@ Do not let two programs own one direct serial port. Do not assume a discovered
 COM port is your radio. OmniRig is an external COM server, not included in the
 installer. TCP hostnames other than localhost are rejected; use numeric IPv4/IPv6.
 Restrict rigctld to a trusted interface/network.
+
+The TCP method is protocol-based, not process-name-based. Any local service
+that exposes the Hamlib NET rigctl protocol can be selected, including CAT4OM's
+Hamlib-compatible endpoint. FEC-RTTY accepts both standard plain getter replies
+(`f`, `m`, `t`) and Hamlib's extended getter replies (`+f`, `+m`, `+t`).
 
 ![Radio connection and explicit PTT controls at effective 200% scaling](../evidence/cat-20261005/radio-200.png)
 
@@ -112,7 +117,8 @@ supervised low-power/dummy-load tests. A crash cannot guarantee PTT OFF.
 
 Core tests cover worker ownership, readback, fault inhibition, uncertain
 key/release, watchdog and settings. Windows tests cover fragmented, negative,
-malformed and timed-out rigctld replies plus fake OmniRig COM dispatch for both
+plain and extended rigctld replies, plus negative, malformed and timed-out
+cases and fake OmniRig COM dispatch for both
 slots and exact RX/TX/data enum values. Direct tests use real Hamlib Dummy ID 1.
 
 Explicit GUI bench flags default to NullRig regardless of saved radio settings.

@@ -1,6 +1,6 @@
 # FEC-RTTY documentation and test-record index
 
-FEC-RTTY began as a 24-hour digital-mode experiment. Application **0.46.0**
+FEC-RTTY began as a 24-hour digital-mode experiment. Application **0.46.1**
 is the current baseline. [Latest Windows downloads](https://github.com/M0NXD/FEC-RTTY/releases/latest)
 are release attachments; this checkout contains the canonical source.
 
@@ -35,6 +35,7 @@ Audio tests use actual modem samples. Historical records kept physical CAT/PTT
 disabled; v0.46.0 adds Dummy/loopback CAT tests without RF.
 
 - [v0.46.0 CAT/audio/installer acceptance](evidence/CAT_RELEASE_20261005.md).
+- [v0.46.1 CAT4OM/rigctld plain-reply compatibility](evidence/CAT4OM_20261005.md).
 
 - [Documentation and fresh-source build review](evidence/DOCS_PUBLIC_AUDIT_20261005.md).
 - [Public Windows package acceptance](evidence/PUBLIC_RELEASE_20261005.md):

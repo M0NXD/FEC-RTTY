@@ -1,7 +1,7 @@
 # FEC-RTTY Windows installation
 
 FEC-RTTY began as a 24-hour digital-mode experiment. The current Windows
-release packages application **v0.46.0**, installer revision **1**, including
+release packages application **v0.46.1**, installer revision **1**, including
 optional CAT support and its Hamlib/libusb runtime dependencies. The modem
 waveform and unencrypted messages are unchanged. Arming is off by default.
 
@@ -16,7 +16,7 @@ Requires Windows 10 1809+ or Windows 11 **x64**, with a 48 kHz mono-capable
 audio device. ARM64/32-bit Windows are not claimed. The OS baseline follows
 [Qt 6.8's supported platforms](https://doc.qt.io/qt-6.8/supported-platforms.html).
 
-Run `FEC-RTTY-0.46.0-Setup-x64.exe`. It installs for the current user, normally
+Run `FEC-RTTY-0.46.1-Setup-x64.exe`. It installs for the current user, normally
 at `%LOCALAPPDATA%\Programs\FEC-RTTY`, without elevation. Launch
 **FEC-RTTY - M0NXD** from the Start menu; the same executable can run twice.
 Offline documentation starts at the installed `index.html`.
@@ -68,7 +68,7 @@ See [Testing](TESTING.md) for endpoint verification and sequential audio tests.
 
 Building the application itself is documented in [BUILDING.md](BUILDING.md).
 The release builder needs PowerShell 7, a compatible Inno Setup compiler,
-the recorded v0.46.0 runtime/source archive and installer/accepted-release.json,
+the recorded v0.46.1 runtime/source archive and installer/accepted-release.json,
 Hamlib/libusb sources/license inputs, Qt SDK license/SPDX inputs,
 compiler/PortAudio notices and official Qt Base/SVG 6.8.3 source archives.
 These are separate inputs, not included in a fresh source checkout.
@@ -81,7 +81,7 @@ Overrides: `-ReleaseDir`, `-AcceptedArchive`, `-IsccExe`, `-QtRoot`,
 `-RuntimeLicenseRoot`, `-QtLicenseDir`, `-QtSourceDir`, `-OutputDir`.
 There are no downloads in this builder. Supply an empty output folder.
 Default inputs live in ignored `third_party/` and local `releases/`;
-outputs are written to `releases/v0.46.0-public/`.
+outputs are written to `releases/v0.46.1-public/`.
 
 Every input runtime/plugin is compared to its accepted archive; GUI/live hashes
 and canonical source/tests are checked. Qt/Hamlib/libusb source archives are SHA256-pinned.

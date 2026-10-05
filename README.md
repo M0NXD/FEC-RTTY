@@ -13,10 +13,10 @@ development or radio validation finished in that time.
 
 ## Download and run
 
-Current application: **0.46.0**, experimental Windows x64 CAT/audio build.
+Current application: **0.46.1**, experimental Windows x64 CAT/audio build.
 
-- [Windows installer](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.0/FEC-RTTY-0.46.0-Setup-x64.exe): installs application runtimes, documentation, Start-menu shortcuts and standard Windows uninstall.
-- [Portable Windows ZIP](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.0/FEC-RTTY-0.46.0-Windows-x64.zip): extract completely, then run `gui/fectty-gui.exe`.
+- [Windows installer](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.1/FEC-RTTY-0.46.1-Setup-x64.exe): installs application runtimes, documentation, Start-menu shortcuts and standard Windows uninstall.
+- [Portable Windows ZIP](https://github.com/M0NXD/FEC-RTTY/releases/download/v0.46.1/FEC-RTTY-0.46.1-Windows-x64.zip): extract completely, then run `gui/fectty-gui.exe`.
 - [Latest release and checksums](https://github.com/M0NXD/FEC-RTTY/releases/latest): source download, SHA256 checksums and matching Qt library sources.
 
 Requires Windows 10 1809+ or Windows 11 x64 and a suitable 48 kHz audio device.

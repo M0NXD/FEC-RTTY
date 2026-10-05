@@ -1,4 +1,25 @@
-# FEC-RTTY - M0NXD 0.46.0
+# FEC-RTTY - M0NXD 0.46.1
+
+Patch release for the experimental Windows x64 CAT/audio build. The original
+24-hour experiment, fixed FEC waveform, UTF-8/newlines and unencrypted messages
+remain unchanged.
+
+## Downloads
+
+- FEC-RTTY-0.46.1-Setup-x64.exe: offline per-user installer; standard Windows uninstall.
+- FEC-RTTY-0.46.1-Windows-x64.zip: extract completely, then run gui/fectty-gui.exe.
+- FEC-RTTY-0.46.1-source.zip: canonical source and public documentation.
+
+## Changes in 0.46.1
+
+- Accept standard plain Hamlib/rigctld getter replies (`f`, `m`, `t`) as well as
+  extended `+f`, `+m`, `+t` replies.
+- Verified read-only CAT connection to CAT4OM's Hamlib-compatible TCP endpoint
+  on `127.0.0.1:4532`; the implementation remains process-agnostic.
+- Added regression coverage for fragmented plain replies while retaining the
+  existing extended-response tests.
+
+## 0.46.0
 
 Experimental Windows x64 release adding CAT radio control. The original
 24-hour experiment, fixed FEC waveform, UTF-8/newlines and unencrypted messages

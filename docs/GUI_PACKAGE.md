@@ -1,4 +1,4 @@
-# FEC-RTTY v0.46.0 GUI operation
+# FEC-RTTY v0.46.1 GUI operation
 
 For the 24-hour experiment's purpose, complete architecture/source map,
 settings, testing, troubleshooting, and remaining work, see the

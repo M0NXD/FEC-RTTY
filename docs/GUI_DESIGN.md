@@ -3,7 +3,7 @@
 ## Status and reading this document
 
 This file combines implemented UI direction with future product requirements.
-The [complete project guide](PROJECT_GUIDE.md) describes the current v0.46.0
+The [complete project guide](PROJECT_GUIDE.md) describes the current v0.46.1
 implementation. The project began as a 24-hour digital-mode experiment, not
 as a completed production radio application. Current operation is direct,
 linkless plaintext; CAT/PTT requires explicit arming.
@@ -54,7 +54,7 @@ The three main regions should collapse gracefully. At narrower widths, the setup
 ## Design requirements (not all implemented)
 
 These are product requirements. Use [GUI operation](GUI_PACKAGE.md) for the
-controls that actually work in 0.46.0. RF tuning/PTT are implemented; a GUI logbook, selectable
+controls that actually work in 0.46.1. RF tuning/PTT are implemented; a GUI logbook, selectable
 sample rate and the full identity/export workflow are not current features.
 
 ### Radio control

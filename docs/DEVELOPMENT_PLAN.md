@@ -1,7 +1,7 @@
 # FEC-RTTY development roadmap
 
 The project began as a 24-hour digital-mode experiment. This roadmap describes
-application 0.46.0 and remaining engineering work, not a promise that every
+application 0.46.1 and remaining engineering work, not a promise that every
 planned feature is implemented. See the [project guide](PROJECT_GUIDE.md)
 for behavior and the [test guide](TESTING.md) for verification procedures.
 
@@ -27,6 +27,7 @@ alone is not an interoperability or RF acceptance gate.
 | v0.45.0 | Live waterfall and linked/split RX/TX audio tuning |
 | v0.45.1 | Noise-prefixed acquisition and automatic-send completion fixes |
 | v0.46.0 | Direct Hamlib/TCP/OmniRig CAT, explicit PTT, readback and safety regressions |
+| v0.46.1 | Plain rigctld/CAT4OM getter compatibility while retaining extended replies |
 | Installer experiment | Per-user offline packaging, repair and standard Windows uninstall |
 
 Dated evidence is indexed in [PROJECT_INDEX.md](../PROJECT_INDEX.md). GUI design

@@ -11,7 +11,7 @@ deliberately unencrypted; error correction and encoding are not encryption.
 
 ## 1. Scope and status
 
-Application version 0.46.0 and wire-frame version 0 are different identifiers.
+Application version 0.46.1 and wire-frame version 0 are different identifiers.
 This is the current implementation's technical specification, not an operator
 setup guide. Use [Building](BUILDING.md) and [GUI operation](GUI_PACKAGE.md)
 to run the program; legacy addressed formats are explicitly separated below.

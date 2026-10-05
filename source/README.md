@@ -1,7 +1,7 @@
 # FEC-RTTY source
 
 This directory contains the C++20 modem, Windows audio adapters, Qt GUI and
-regression tests for application version 0.46.0. Start with the
+regression tests for application version 0.46.1. Start with the
 [project README](../README.md) and [build guide](../docs/BUILDING.md).
 The project began as a 24-hour digital-mode experiment; current limitations
 are documented in the [project guide](../docs/PROJECT_GUIDE.md).

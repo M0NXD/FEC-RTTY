@@ -3,7 +3,7 @@
 These instructions start from a fresh clone of
 [M0NXD/FEC-RTTY](https://github.com/M0NXD/FEC-RTTY), not a developer's existing
 SDK or runtime folders. Windows x64 is the recorded build/bench environment.
-The application version is 0.46.0.
+The application version is 0.46.1.
 
 ## What you need
 

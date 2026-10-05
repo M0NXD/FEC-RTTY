@@ -6,7 +6,7 @@
   #error OutputPath is required
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.46.0"
+  #define AppVersion "0.46.1"
 #endif
 
 [Setup]

@@ -1,6 +1,6 @@
 # FEC-RTTY - M0NXD: complete project guide
 
-Documentation baseline: application v0.46.0,
+Documentation baseline: application v0.46.1,
 4 October 2026, with public-reader instructions updated 5 October 2026.
 Get the current Windows installer/portable ZIP from the
 [latest release](https://github.com/M0NXD/FEC-RTTY/releases/latest).
@@ -100,7 +100,7 @@ then launch `source/build-gui/fectty-gui.exe`. Alternatively, download the
 installer or portable ZIP from the official
 [release page](https://github.com/M0NXD/FEC-RTTY/releases/latest).
 
-Run `FEC-RTTY-0.46.0-Setup-x64.exe`, which bundles runtime prerequisites
+Run `FEC-RTTY-0.46.1-Setup-x64.exe`, which bundles runtime prerequisites
 and registers normal Windows uninstall. See [INSTALLER.md](INSTALLER.md).
 No modem behavior or radio-keying scope is changed by installer packaging.
 

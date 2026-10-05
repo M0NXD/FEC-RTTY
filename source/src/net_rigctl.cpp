@@ -1,6 +1,7 @@
 #include "fectty/net_rigctl.hpp"
 #include <sstream>
 #include <chrono>
+#include <vector>
 #include "fectty/parse.hpp"
 #ifdef _WIN32
 #include <winsock2.h>
@@ -118,10 +119,10 @@ static bool send_all(SocketHandle s, const std::string& payload) {
     return true;
 }
 
-static bool receive_line(SocketHandle s, std::string& line, bool extended) {
+static bool receive_socket_line(SocketHandle s, std::string& line,
+                                std::chrono::milliseconds timeout) {
     line.clear();
-    const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(1500);
-    std::string current_line;
+    const auto deadline=std::chrono::steady_clock::now()+timeout;
     while (line.size() < 4096) {
         const auto left=std::chrono::duration_cast<std::chrono::microseconds>(deadline-std::chrono::steady_clock::now()).count();
         if(left<=0)return false;
@@ -132,23 +133,54 @@ static bool receive_line(SocketHandle s, std::string& line, bool extended) {
         const auto native=static_cast<int>(s);
 #endif
         FD_SET(native,&readable);
-        timeval timeout{static_cast<long>(left/1000000),static_cast<long>(left%1000000)};
+        timeval wait{static_cast<long>(left/1000000),static_cast<long>(left%1000000)};
         char byte{};
 #ifdef _WIN32
-        if(select(0,&readable,nullptr,nullptr,&timeout)<=0)return false;
-        const int count = recv(static_cast<SOCKET>(s), &byte, 1, 0);
+        if(select(0,&readable,nullptr,nullptr,&wait)<=0)return false;
+        const int count=recv(static_cast<SOCKET>(s),&byte,1,0);
 #else
-        if(select(static_cast<int>(s)+1,&readable,nullptr,nullptr,&timeout)<=0)return false;
-        const auto count = recv(static_cast<int>(s), &byte, 1, 0);
+        if(select(static_cast<int>(s)+1,&readable,nullptr,nullptr,&wait)<=0)return false;
+        const auto count=recv(static_cast<int>(s),&byte,1,0);
 #endif
-        if (count <= 0) return false;
+        if(count<=0)return false;
         line.push_back(byte);
-        if(byte=='\n') {
-            if(!extended || current_line.starts_with("RPRT "))return true;
-            current_line.clear();
-        } else if(byte!='\r') current_line.push_back(byte);
+        if(byte=='\n')return true;
     }
     return false;
+}
+
+static bool receive_line(SocketHandle s, std::string& line, bool extended) {
+    if(!extended)return receive_socket_line(s,line,std::chrono::milliseconds(1500));
+    line.clear();
+    std::string current_line;
+    while (line.size() < 4096) {
+        std::string part;
+        if(!receive_socket_line(s,part,std::chrono::milliseconds(1500)))return false;
+        line += part;
+        current_line.clear();
+        for(const auto byte:part) {
+            if(byte=='\n') {
+                if(current_line.starts_with("RPRT "))return true;
+                current_line.clear();
+            } else if(byte!='\r') current_line.push_back(byte);
+        }
+    }
+    return false;
+}
+
+// Standard rigctld getters return a fixed number of value lines and do not
+// necessarily append RPRT. CAT4OM deliberately implements this plain form;
+// stock rigctld also supports it. Extended (+f/+m/+t) replies remain handled
+// by receive_line above for servers that require that form.
+static bool receive_plain_values(SocketHandle s, std::string& response,
+                                 size_t value_lines) {
+    response.clear();
+    for(size_t i=0;i<value_lines;++i) {
+        std::string line;
+        if(!receive_socket_line(s,line,std::chrono::milliseconds(1500)))return false;
+        response += line;
+    }
+    return true;
 }
 
 static bool rigctl_reply_ok(std::string reply) {
@@ -215,7 +247,61 @@ static bool extended_value(const std::string& response,const std::string& name,s
  }
  return found&&success;
 }
+
+static std::vector<std::string> nonempty_lines(const std::string& response) {
+ std::vector<std::string> lines;std::istringstream stream(response);std::string line;
+ while(std::getline(stream,line)) {
+  while(!line.empty()&&(line.back()=='\r'||line.back()=='\n'))line.pop_back();
+  const auto begin=line.find_first_not_of(" \t");
+  if(begin!=std::string::npos) {
+   const auto end=line.find_last_not_of(" \t");lines.push_back(line.substr(begin,end-begin+1));
+  }
+ }
+ return lines;
+}
+
+static bool parse_plain_state(const std::string& frequency_reply,
+                              const std::string& mode_reply,
+                              const std::string& ptt_reply,
+                              RigState& out) {
+ const auto f_lines=nonempty_lines(frequency_reply),m_lines=nonempty_lines(mode_reply),t_lines=nonempty_lines(ptt_reply);
+ uint64_t frequency=0;int ptt=-1;
+ if(f_lines.empty()||!parse_number(f_lines.front(),frequency)||!frequency||m_lines.empty()||t_lines.empty()||
+    !parse_number(t_lines.front(),ptt)||ptt<0||ptt>3)return false;
+ const auto& mode=m_lines.front();
+ const auto parsed_mode=mode=="USB"?RigMode::USB:mode=="LSB"?RigMode::LSB:mode=="PKTUSB"?RigMode::DataUSB:mode=="PKTLSB"?RigMode::DataLSB:RigMode::Unknown;
+ out={true,ptt!=0,frequency,parsed_mode};return true;
+}
+
 bool NetRigctlControl::read_state(RigState& out) {
+ std::string frequency_reply,mode_reply,ptt_reply;
+ auto plain_command=[this](const std::string& command,size_t value_lines,std::string* reply) {
+  if(socket_invalid(sock_))return false;
+  if(!send_all(sock_,command+"\n")) {
+   state_.connected=false;closesock(sock_);sock_=-1;return false;
+  }
+  std::string response;
+  if(!receive_plain_values(sock_,response,value_lines)) {
+   state_.connected=false;closesock(sock_);sock_=-1;return false;
+  }
+  if(reply)*reply=std::move(response);
+  return true;
+ };
+ // Use the interoperable plain getter form first. CAT4OM exposes exactly
+ // this form on its Hamlib port, while ordinary rigctld accepts it too.
+ if(plain_command("f",1,&frequency_reply)) {
+  const auto f_lines=nonempty_lines(frequency_reply);uint64_t plain_frequency=0;
+  if(!f_lines.empty()&&parse_number(f_lines.front(),plain_frequency)&&plain_frequency) {
+   if(plain_command("m",2,&mode_reply)&&plain_command("t",1,&ptt_reply)&&
+      parse_plain_state(frequency_reply,mode_reply,ptt_reply,out)) {
+    state_=out;return true;
+   }
+   return false;
+  }
+ }
+
+ // Some rigctld-compatible servers only implement the extended response
+ // form. Keep that compatibility path for them.
  std::string reply,value;uint64_t frequency=0;int ptt=-1;
  if(!command("+f",&reply)||!extended_value(reply,"Frequency",value)||!parse_number(value,frequency)||!frequency)return false;
  if(!command("+m",&reply)||!extended_value(reply,"Mode",value))return false;

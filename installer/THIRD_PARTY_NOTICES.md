@@ -14,7 +14,7 @@ in the complete upstream sources; SDK SPDX metadata is included for reference.
 
 The unmodified, complete source archives are included inside every Windows
 package at `licenses/qt/source/` and are separately attached to the same
-[release page](https://github.com/M0NXD/FEC-RTTY/releases/tag/v0.46.0):
+[release page](https://github.com/M0NXD/FEC-RTTY/releases/tag/v0.46.1):
 
 | Archive | SHA256 |
 |---|---|

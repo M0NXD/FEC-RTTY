@@ -86,9 +86,9 @@ static void controller_tests(){
 #ifdef _WIN32
 class Server {
  SOCKET listener=INVALID_SOCKET;std::atomic<SOCKET> client{INVALID_SOCKET};std::atomic<bool> stop{false};std::thread worker;
-public:
+ public:
  unsigned short port=0;std::atomic<int> ptt{0},bad{0};std::atomic<uint64_t> frequency{14080000};
- std::string mode="USB";std::vector<std::string> commands;std::mutex mutex;bool fragment=false;
+ std::string mode="USB";std::vector<std::string> commands;std::mutex mutex;bool fragment=false,plain=false;
  Server(){WSADATA data{};WSAStartup(MAKEWORD(2,2),&data);listener=socket(AF_INET,SOCK_STREAM,0);
   sockaddr_in addr{};addr.sin_family=AF_INET;addr.sin_addr.s_addr=htonl(INADDR_LOOPBACK);addr.sin_port=0;
   if(bind(listener,reinterpret_cast<sockaddr*>(&addr),sizeof(addr))||listen(listener,2))throw std::runtime_error("test server bind failed");
@@ -99,7 +99,10 @@ public:
    while(!stop&&recv(c,&b,1,0)>0){if(b!='\n'){command+=b;continue;}
     {std::lock_guard lock(mutex);commands.push_back(command);}
     std::string reply="RPRT 0\n";
-    if(command=="+f")reply="get_freq:\nFrequency: "+std::to_string(frequency.load())+"\nRPRT 0\n";
+    if(plain&&command=="f")reply=std::to_string(frequency.load())+"\n";
+    else if(plain&&command=="m")reply=mode+"\n2400\n";
+    else if(plain&&command=="t")reply=std::to_string(ptt.load())+"\n";
+    else if(command=="+f")reply="get_freq:\nFrequency: "+std::to_string(frequency.load())+"\nRPRT 0\n";
     else if(command=="+m")reply="get_mode:\nMode: "+mode+"\nPassband: 2400\nRPRT 0\n";
     else if(command=="+t")reply="get_ptt:\nPTT: "+std::to_string(ptt.load())+"\nRPRT 0\n";
     else if(command.starts_with("F "))frequency=std::stoull(command.substr(2));
@@ -131,6 +134,11 @@ static void tcp_tests(){
  rig.disconnect();server.bad=0;server.ptt=0;
  {RadioController c;CHECK(c.connect([&]{return std::make_unique<NetRigctlControl>("127.0.0.1",server.port);}).get());
   CHECK(c.begin_tx(PttMode::On,2s).get());CHECK(c.end_tx().get());CHECK(server.ptt==0);}
+ Server standard;standard.fragment=true;standard.plain=true;NetRigctlControl plain_rig("127.0.0.1",standard.port);
+ CHECK(plain_rig.connect());CHECK(plain_rig.read_state(read));CHECK(read.frequency_hz==14080000&&read.mode==RigMode::USB&&!read.transmitting);
+ CHECK(plain_rig.set_frequency(7100000));CHECK(plain_rig.set_mode(RigMode::DataLSB));CHECK(plain_rig.read_state(read));
+ CHECK(read.frequency_hz==7100000&&read.mode==RigMode::DataLSB);CHECK(plain_rig.set_ptt(PttMode::On));CHECK(plain_rig.read_state(read)&&read.transmitting);
+ CHECK(plain_rig.set_ptt(PttMode::Off));CHECK(plain_rig.read_state(read)&&!read.transmitting);plain_rig.disconnect();
 }
 struct OmniState {long freq=14080000,mode=0x02000000,tx=0x00200000,status=4;int slot=0;bool affine=true;std::thread::id owner;};
 class Dispatch final:public IDispatch{

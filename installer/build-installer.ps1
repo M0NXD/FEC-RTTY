@@ -13,12 +13,12 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $project = Split-Path -Parent $PSScriptRoot
-if (-not $ReleaseDir) { $ReleaseDir = Join-Path $project 'releases/fectty-v0.46.0-cat-20261005' }
-if (-not $AcceptedArchive) { $AcceptedArchive = Join-Path $project 'releases/fectty-v0.46.0-cat-20261005.zip' }
+if (-not $ReleaseDir) { $ReleaseDir = Join-Path $project 'releases/fectty-v0.46.1-cat-20261005' }
+if (-not $AcceptedArchive) { $AcceptedArchive = Join-Path $project 'releases/fectty-v0.46.1-cat-20261005.zip' }
 if (-not $QtRoot) { $QtRoot = Join-Path $project 'third_party/qt/6.8.3/mingw_64' }
 if (-not $QtLicenseDir) { $QtLicenseDir = Join-Path $project 'third_party/installer-licenses' }
 if (-not $QtSourceDir) { $QtSourceDir = Join-Path $project 'third_party/public-qt-sources' }
-if (-not $OutputDir) { $OutputDir = Join-Path $project 'releases/v0.46.0-public' }
+if (-not $OutputDir) { $OutputDir = Join-Path $project 'releases/v0.46.1-public' }
 if (-not $IsccExe) {
     $candidates = @((Join-Path $project 'third_party/inno-setup-6.7.3/ISCC.exe'),
         'C:\Program Files (x86)\Inno Setup 6\ISCC.exe', 'C:\Program Files\Inno Setup 6\ISCC.exe')
@@ -113,7 +113,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate canonical source/documentatio
 $pending = & git -C $project ls-files --others --exclude-standard -- source docs tools evidence installer
 if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate current installer/documentation files.' }
 foreach ($relative in @($tracked) + @($pending) | Sort-Object -Unique) {
-    if ($relative -match '\.(wav|dll|zip|exe)$' -or $relative -match '(^|/)build[^/]*/') { continue }
+    # Do not package local office artifacts or generated binary payloads that
+    # may be present as untracked workspace material.
+    if ($relative -match '\.(wav|dll|zip|exe|docx|xlsx)$' -or $relative -match '(^|/)build[^/]*/') { continue }
     Copy-PayloadFile (Join-Path $project $relative) $relative
 }
 foreach ($name in @('README.md','PROJECT_INDEX.md')) { Copy-PayloadFile (Join-Path $project $name) $name }
